@@ -24,7 +24,7 @@ export const PHASES = ['mens', 'foll', 'fert', 'lut'];
 export const CATEGORY_IDS = ['pain', 'body', 'digestion', 'skin', 'mood', 'energy', 'sleep', 'activity', 'mucus', 'temp', 'weight', 'sex', 'meds', 'notes'];
 export const DEFAULT_SETTINGS = {
   name: '', cycleLen: 28, periodLen: 5, luteal: 14,
-  pill: false, pillTime: '20:00', lastBackup: null, chance: true,
+  pill: false, pillTime: '20:00', lastBackup: null, backupSnooze: null, chance: true,
   categories: Object.fromEntries(CATEGORY_IDS.map(c => [c, true])),
   customSymptoms: [], meds: [],
   reminders: { periodBefore: 2, logTime: '21:00', custom: [] },
@@ -570,4 +570,45 @@ export function reportData(db, m, from, to) {
   const ps = m.ps.filter(p => p.start >= from && p.start <= to);
   const notes = Object.entries(db.days).filter(([d, e]) => d >= from && d <= to && e.note).sort((a, b) => a[0].localeCompare(b[0]));
   return { ...A, periods: ps, notes };
+}
+
+/* ---------- Backup-Erinnerung ---------- */
+/** true, wenn ein Backup fällig ist: 14 Tage nach dem ersten Eintrag ohne Backup, sonst alle 30 Tage. */
+export function backupDue(db, t) {
+  const S = db.settings, dates = Object.keys(db.days).sort();
+  if (dates.length < 5) return false;
+  if (S.backupSnooze && S.backupSnooze > t) return false;
+  if (S.lastBackup) return diff(S.lastBackup, t) >= 30;
+  return diff(dates[0], t) >= 14;
+}
+
+/* ---------- Hai-Sprüche (passend zur Situation, wechseln täglich) ---------- */
+export const HAI = {
+  day1: ['Die Haiwoche hat begonnen 🦈 Wärmflasche bereit?', 'Der Hai ist da 🦈 Heute darfst du es dir extra gemütlich machen.'],
+  period: ['Tag {n} der Haiwoche. Du schaffst das 💪', 'Der Hai dreht noch ein paar Runden – gönn dir was Gutes.', 'Haiwoche, Tag {n}: Tee, Decke, Lieblingsserie?', 'Der Hai ist bald müde. Halte durch 🌸'],
+  ended: ['Haiwoche vorbei 🎉 Der Hai ist wieder abgetaucht.', 'Geschafft! Der Hai macht Pause 🌊'],
+  soon: ['In {n} Tagen taucht der Hai auf 🦈 Vorräte schon gecheckt?', 'Der Hai ist im Anmarsch – in etwa {n} Tagen 🌊', 'Bald ist wieder Haiwoche. Vielleicht schon mal Schokolade einplanen? 🍫'],
+  tomorrow: ['Morgen könnte der Hai auftauchen 🦈', 'Der Hai klopft bald an – vielleicht schon morgen.'],
+  today: ['Heute könnte der Hai auftauchen 🦈 Lieber vorbereitet sein.'],
+  lateOk: ['Der Hai lässt sich Zeit – noch im üblichen Spielraum 🌊'],
+  foll: ['Hai-freie Zone 🌸 Genieß die Energie!', 'Der Hai ist auf Urlaub. Zeit für neue Pläne ✨', 'Ruhiges Wasser heute 🌊'],
+  fert: ['Fruchtbare Tage* – der Hai hat damit nichts zu tun 💙', 'Ruhiges Wasser, aber fruchtbare Tage* 💙'],
+  lut: ['Der Hai sammelt Kraft. Sei heute lieb zu dir 💗', 'Der Hai schwimmt langsam näher – Zeit für Selbstfürsorge.', 'Kleine Pausen helfen. Der Hai findet das auch 🦈'],
+  start: ['Hi, ich bin der Hai 🦈 Trag deine Periode ein, dann behalte ich alles im Blick.'],
+};
+/** Wählt einen passenden Spruch. Ernste Situationen (deutlich verspätet) bekommen keinen Witz. */
+export function haiMessage(db, m, t = m.t) {
+  const pick = (k, n) => { const l = HAI[k], seed = (parse(t).getDate() + (m.cycleDay || 0)) % l.length; return l[seed].replace('{n}', n); };
+  if (!m.cur) return pick('start');
+  if (m.inPeriod) return m.periodDay === 1 ? pick('day1') : pick('period', m.periodDay);
+  if (m.late > 0) return m.lateBeyondRange ? null : pick('lateOk');
+  const sinceEnd = diff(m.cur.loggedEnd, t);
+  if (sinceEnd >= 1 && sinceEnd <= 2 && m.cycleDay <= 12) return pick('ended');
+  const n = diff(t, m.next);
+  if (n === 0) return pick('today');
+  if (n === 1) return pick('tomorrow');
+  if (n <= 3) return pick('soon', n);
+  const ph = dayInfo(m, db.days, t).phase;
+  if (ph === 'fert') return db.settings.pill ? pick('foll') : pick('fert');
+  return pick(ph === 'lut' ? 'lut' : 'foll');
 }

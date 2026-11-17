@@ -4,7 +4,7 @@ import * as T from './content.js';
 import * as St from './store.js';
 import { esc, fmt, fmtLong, fmtMonth, fmtShortMonth, tage, dec, icon, logo, bars, curve, cycleRows, heatmap, confBars, CONF_LABEL, TYPE_LABEL, gauge, phaseCurve, areaLine, donut } from './ui.js';
 
-const VERSION = '2.4';
+const VERSION = '2.5';
 const $ = s => document.querySelector(s);
 const state = {
   db: null, session: null, prefs: St.loadPrefs(), ver: 0,
@@ -12,7 +12,7 @@ const state = {
   range: '6', metric: 'energy', sheetDay: null, jq: '', jMonth: '', reportRange: '3',
   partner: { phase: true, next: true, mood: false, symptoms: false, energy: false, note: false, noteText: '' },
   ics: { periods: true, fertile: false, pill: true, meds: true, log: false, custom: true },
-  ob: { name: '', start: '', periodLen: 5, cycleLen: 28, pill: false, sex: true, unknownStart: false },
+  ob: { name: '', start: '', periodLen: 5, cycleLen: 28, pill: false, sex: true, unknownStart: false, past: [] },
 };
 
 /* ---------- Daten & Modell ---------- */
@@ -57,7 +57,7 @@ window.addEventListener('hashchange', () => { render(); window.scrollTo(0, 0); }
 function backHead(title, to = 'more') {
   return `<div class="top"><button class="back" data-a="go" data-v="${to}">${icon('back')}Zurück</button></div><h1>${esc(title)}</h1>`;
 }
-function emptyState(ic, text) { return `<div class="empty">${icon(ic)}<div>${text}</div></div>`; }
+function emptyState(ic, text) { return `<div class="empty"><div class="empty-hai">${logo()}</div><div>${text}</div></div>`; }
 function phasePill(ph, detail) {
   if (!ph) return '';
   const label = detail === 'ov' ? 'Eisprung (geschätzt)' : T.PHASE[ph].name;
@@ -115,6 +115,11 @@ function viewOnboarding() {
       <input id="ob-name" type="text" data-ob="name" value="${esc(o.name)}" placeholder="Name" autocomplete="off">
       <label class="f" for="ob-start">Erster Tag deiner letzten Periode</label>
       <input id="ob-start" type="date" data-ob="start" value="${o.start}" max="${C.todayISO()}" ${o.unknownStart ? 'disabled' : ''}>
+      ${o.unknownStart ? '' : `<div class="past">
+        <div class="small muted" style="margin:14px 0 8px">Frühere Perioden <span class="xs">(optional – macht die Vorhersagen sofort genauer)</span></div>
+        ${o.past.map((v, i) => `<div class="row" style="margin-bottom:8px"><input type="date" data-obp="${i}" value="${v}" max="${C.todayISO()}" aria-label="Frühere Periode ${i + 1}"><button class="iconbtn" data-a="obPastRm" data-v="${i}" aria-label="Entfernen">${icon('x')}</button></div>`).join('')}
+        ${o.past.length < 6 ? `<button class="btn sec sm" data-a="obPastAdd">${icon('plus')}Frühere Periode hinzufügen</button>` : ''}
+      </div>`}
       <div class="swrow" style="padding-top:12px"><span class="small">Weiß ich nicht mehr – ich trage die nächste Periode ein</span><label class="switch"><input type="checkbox" data-a="obToggle" data-k="unknownStart" ${o.unknownStart ? 'checked' : ''} aria-label="Datum unbekannt"><span></span></label></div>
       <label class="f">Wie lange dauert deine Periode meistens?</label>
       <div class="stepper"><button class="iconbtn" data-a="obstep" data-k="periodLen" data-d="-1" aria-label="weniger">−</button><span class="v">${tage(o.periodLen)}</span><button class="iconbtn" data-a="obstep" data-k="periodLen" data-d="1" aria-label="mehr">+</button></div>
@@ -180,7 +185,7 @@ function viewToday() {
     ? `<div class="card"><div class="card-h"><h2>Blutung heute</h2>${e.flow ? `<span class="small muted">${T.FLOW_LABEL[e.flow]}</span>` : ''}</div>
        <div class="chips">${[['spotting', 'Schmier'], ['light', 'Leicht'], ['medium', 'Mittel'], ['heavy', 'Stark']].map(([v, l]) => `<button class="chip mens ${e.flow === v ? 'on' : ''}" data-a="flowToday" data-v="${v}"><span class="em">${T.EMOJI[v]}</span>${l}</button>`).join('')}</div>
        <button class="btn sec mt" data-a="flowToday" data-v="none">${icon('check')}Heute keine Blutung mehr</button></div>`
-    : `<div class="btnrow mt"><button class="btn mens" data-a="startPeriod">${icon('drop')}Periode da</button><button class="btn sec" data-a="editPeriods">${icon('edit')}Korrigieren</button></div>`;
+    : `<div class="btnrow mt" style="margin-bottom:14px"><button class="btn mens" data-a="startPeriod">${icon('drop')}Periode da</button><button class="btn sec" data-a="editPeriods">${icon('edit')}Korrigieren</button></div>`;
 
   const rec = ph ? T.RECS[ph] : null;
   const recs = rec ? `<div class="card-h" style="margin:22px 4px 12px"><h2>Empfehlung für heute</h2><button class="link" data-a="go" data-v="more/library">Wissen</button></div>
@@ -209,6 +214,7 @@ function viewToday() {
   <div class="hello"><div class="grow"><div class="hi">Hallo${name ? ', ' + esc(name) : ''} 👋</div><h1>${q}</h1></div>
     <button class="avatar" data-a="go" data-v="more" aria-label="Mehr">${name ? esc(name.trim()[0].toUpperCase()) : `<span style="width:30px;height:30px">${logo()}</span>`}</button></div>
   ${capsules(m)}
+  ${(h => h ? `<div class="hai"><div class="hai-ic">${logo()}</div><div class="hai-b">${esc(h)}</div></div>` : '')(C.haiMessage(state.db, m))}
   ${ios && !standalone ? `<div class="card tint"><h2>Als App installieren</h2><p class="small mb0">Tippe in Safari auf <b>Teilen</b> → <b>Zum Home-Bildschirm</b>. Erst dann bleiben deine Daten dauerhaft gespeichert.</p></div>` : ''}
   <div class="card hero">
     <div class="gauge">${gauge(m)}<div class="gauge-c"><div class="big">${big}</div><div class="ph" style="color:var(--sel)">${sub}</div></div></div>
@@ -216,6 +222,9 @@ function viewToday() {
   </div>
   <button class="btn" data-a="day" data-v="${t}">${icon('plus')}Symptome eintragen</button>
   ${period}
+  ${C.backupDue(state.db, t) ? `<div class="card backup"><div class="row" style="align-items:flex-start"><span class="ic">${icon('shield')}</span><div class="grow"><h2 style="margin:0 0 4px">Zeit für ein Backup</h2><p class="small muted mb0">${S().lastBackup ? `Dein letztes Backup ist vom ${fmt(S().lastBackup, { day: 'numeric', month: 'long' })}.` : 'Du hast noch nie gesichert.'} Deine Daten liegen nur auf diesem iPhone – speichere sie in „Dateien“ oder iCloud.</p></div></div>
+    <div class="btnrow mt"><button class="btn" data-a="export">${icon('down')}Jetzt sichern</button><button class="btn sec" data-a="backupLater">Später</button></div></div>` : ''}
+  ${m.ps.length === 1 && !m.cycles.length ? `<div class="card tint"><h2>Frühere Perioden nachtragen?</h2><p class="small mb0">Mit 2–3 vergangenen Perioden werden die Vorhersagen sofort viel genauer.</p><button class="btn sec mt" data-a="editPeriods">${icon('edit')}Im Kalender nachtragen</button></div>` : ''}
   ${recs}${quick}${reminders}${insights}
   <p class="xs muted center" style="margin:18px 8px 0">* Vorhersagen sind Schätzungen aus deinen Daten – kein Verhütungsmittel und keine Diagnose.</p>
   </div>`;
@@ -300,7 +309,7 @@ function viewStats() {
   const m = model(), t = m.t, from = rangeFrom(state.range, t);
   const A = C.analyze(state.db, m, from, t);
   const seg = `<div class="seg" role="tablist">${[['3', '3 Mon.'], ['6', '6 Mon.'], ['12', '1 Jahr'], ['all', 'Alles']].map(([k, l]) => `<button role="tab" aria-selected="${state.range === k}" class="${state.range === k ? 'on' : ''}" data-a="range" data-v="${k}">${l}</button>`).join('')}</div>`;
-  if (!m.ps.length) return `<div class="view"><h1>Analyse</h1><div class="card">${emptyState('chart', 'Sobald du deine Periode einträgst, erscheinen hier Statistiken, Muster und Erkenntnisse.')}</div></div>`;
+  if (!m.ps.length) return `<div class="view"><h1>Analyse</h1><div class="card">${emptyState('chart', 'Der Hai braucht noch Futter: Sobald du deine Periode einträgst, erscheinen hier Statistiken, Muster und Erkenntnisse.')}</div></div>`;
   const cyc = A.cycles;
   const regTxt = { regular: 'Regelmäßig', irregular: 'Schwankend', unknown: 'Zu wenig Daten' }[m.regularity];
   const inN = l => l >= 21 && l <= 35;
@@ -372,7 +381,7 @@ function viewJournal() {
   <h1>Tagebuch</h1>
   <input type="search" placeholder="Suchen: Notizen, Symptome, Stimmung …" data-in="jq" value="${esc(state.jq)}" aria-label="Tagebuch durchsuchen">
   ${monthsAvail.length > 1 ? `<div class="chips scroll mt"><button class="chip ${!state.jMonth ? 'on' : ''}" data-a="jMonth" data-v="">Alle</button>${monthsAvail.slice(0, 24).map(mk => `<button class="chip ${state.jMonth === mk ? 'on' : ''}" data-a="jMonth" data-v="${mk}">${fmtShortMonth(mk)} ${mk.slice(2, 4)}</button>`).join('')}</div>` : ''}
-  <div id="jlist">${html || `<div class="card mt">${emptyState('note', q ? 'Keine Treffer.' : 'Hier entsteht dein persönliches Tagebuch. Jeder Eintrag – Stimmung, Symptome, Notizen – erscheint in dieser Zeitleiste.')}</div>`}
+  <div id="jlist">${html || `<div class="card mt">${emptyState('note', q ? 'Keine Treffer – der Hai hat überall gesucht.' : 'Hier entsteht dein Tagebuch. Der Hai ist schon gespannt auf deine Einträge – Stimmung, Symptome, Notizen erscheinen in dieser Zeitleiste.')}</div>`}
   ${list.length > shown.length ? `<p class="small muted center">${list.length - shown.length} ältere Einträge – nutze Suche oder Monatsfilter.</p>` : ''}</div>
   </div>`;
 }
@@ -831,12 +840,12 @@ const A = {
   startPeriod() {
     const t = C.todayISO(), before = snapshot();
     setField(t, 'flow', 'medium'); commit();
-    toast('Periode eingetragen – Vorhersagen aktualisiert', () => { state.db.days = before; commit(); });
+    toast('Haiwoche eingetragen 🦈 Vorhersagen aktualisiert', () => { state.db.days = before; commit(); });
   },
   flowToday(el) {
     const t = C.todayISO(), e = state.db.days[t] || {}, v = el.dataset.v;
     setField(t, 'flow', e.flow === v ? null : v); commit();
-    if (v === 'none') toast('Periode als beendet markiert');
+    if (v === 'none') toast('Haiwoche vorbei 🎉 Gut gemacht!');
   },
   pillToday() { const t = C.todayISO(), e = state.db.days[t] || {}; setField(t, 'pill', !e.pill); commit(); },
   medToday(el) { const t = C.todayISO(), e = state.db.days[t] || {}; setField(t, 'meds', [...new Set([...(e.meds || []), el.dataset.v])]); commit(); },
@@ -857,6 +866,9 @@ const A = {
   },
   // Onboarding
   obstep(el) { const k = el.dataset.k, lim = k === 'cycleLen' ? [18, 60] : [1, 12]; state.ob[k] = C.clamp(state.ob[k] + Number(el.dataset.d), lim[0], lim[1]); render(); },
+  obPastAdd() { state.ob.past.push(''); render(); const ins = document.querySelectorAll('[data-obp]'); if (ins.length) ins[ins.length - 1].focus(); },
+  obPastRm(el) { state.ob.past.splice(Number(el.dataset.v), 1); render(); },
+  backupLater() { S().backupSnooze = C.add(C.todayISO(), 7); commit(); toast('Okay, ich erinnere dich in einer Woche 🦈'); },
   obToggle(el) { state.ob[el.dataset.k] = el.checked; if (el.dataset.k === 'unknownStart') render(); },
   finishOb() {
     const o = state.ob, t = C.todayISO();
@@ -864,7 +876,15 @@ const A = {
     if (o.start > t) { alert('Das Datum liegt in der Zukunft.'); return; }
     const db = C.migrate({ settings: { name: o.name.trim(), cycleLen: o.cycleLen, periodLen: o.periodLen, pill: o.pill }, days: {} });
     db.settings.categories.sex = o.sex;
-    if (!o.unknownStart) for (let i = 0; i < o.periodLen; i++) { const d = C.add(o.start, i); if (d <= t) db.days[d] = { flow: 'medium' }; }
+    if (!o.unknownStart) {
+      const starts = [o.start, ...o.past.filter(v => v && v < o.start)].sort();
+      let prev = null;
+      for (const st of starts) {
+        if (prev && C.diff(prev, st) < 15) continue; // überlappende/zu nahe Angaben ignorieren
+        for (let i = 0; i < o.periodLen; i++) { const d = C.add(st, i); if (d <= t) db.days[d] = { flow: 'medium' }; }
+        prev = st;
+      }
+    }
     state.db = db; commit({ silent: true });
     try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch (e) { }
     go('today'); render();
@@ -956,6 +976,7 @@ let jqT;
 document.addEventListener('input', ev => {
   const el = ev.target;
   if (el.dataset.ob) state.ob[el.dataset.ob] = el.value;
+  else if (el.dataset.obp != null) state.ob.past[Number(el.dataset.obp)] = el.value;
   else if (el.dataset.set && el.type === 'text') { S()[el.dataset.set] = el.value; commit({ silent: true }); }
   else if (el.dataset.num) {
     const raw = el.value.replace(',', '.').trim(), v = raw === '' ? null : parseFloat(raw);

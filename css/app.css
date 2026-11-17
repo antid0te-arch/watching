@@ -375,3 +375,14 @@ label.f { display: block; font-size: 14px; color: var(--muted); margin: 16px 0 6
 .sheet-h .ch-sub { font-size: 12px; font-weight: 600; margin-top: 1px; }
 .sheet-h .ch-sub.ch-high, .sheet-h .ch-sub.ch-medium { background: none; color: var(--fert); }
 .sheet-h .ch-sub.ch-low { background: none; color: var(--muted); }
+
+/* ===== Hai-Persönlichkeit ===== */
+.hai { display: flex; align-items: center; gap: 10px; margin: -2px 0 14px; animation: viewIn .5s var(--ease) both .1s; }
+.hai-ic { width: 40px; height: 40px; flex: none; border-radius: 50%; background: var(--surface); border: 1px solid var(--line); padding: 6px; box-shadow: var(--shadow); }
+.hai-ic svg { width: 100%; height: 100%; display: block; }
+.hai-b { position: relative; background: color-mix(in srgb, var(--surface) 92%, transparent); border: 1px solid var(--line); border-radius: 18px 18px 18px 6px; padding: 10px 14px; font-size: 14.5px; line-height: 1.35; box-shadow: var(--shadow); min-width: 0; }
+.empty-hai { width: 64px; height: 64px; margin: 0 auto 8px; opacity: .9; }
+.empty-hai svg { width: 100%; height: 100%; }
+.backup .ic { width: 40px; height: 40px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); display: flex; align-items: center; justify-content: center; flex: none; }
+.backup .ic svg { width: 20px; height: 20px; }
+.past .row input { flex: 1; }

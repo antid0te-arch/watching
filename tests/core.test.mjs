@@ -275,3 +275,31 @@ test('Schwangerschaftschance: nach gemessenem Temperaturanstieg niedrig', async 
   assert.equal(chanceOf(m, db.days, add(m.cur.ov, 3)).level, 'low');
   assert.ok(chanceOf(m, db.days, add(m.cur.ov, 3)).p <= 0.01);
 });
+
+test('Backup-Erinnerung: nach 14 Tagen ohne Backup, dann alle 30 Tage, Schlummern möglich', async () => {
+  const { backupDue } = await import('../js/core.js');
+  const db = mk();
+  assert.equal(backupDue(db, '2026-03-01'), false);
+  cyclesFrom(db, '2026-01-01', [28]);
+  assert.equal(backupDue(db, '2026-01-10'), false);
+  assert.equal(backupDue(db, '2026-01-20'), true);
+  db.settings.lastBackup = '2026-01-20';
+  assert.equal(backupDue(db, '2026-02-10'), false);
+  assert.equal(backupDue(db, '2026-02-19'), true);
+  db.settings.backupSnooze = '2026-02-25';
+  assert.equal(backupDue(db, '2026-02-20'), false);
+  assert.equal(backupDue(db, '2026-02-26'), true);
+});
+
+test('Hai-Sprüche passen zur Situation und bleiben bei deutlicher Verspätung ernst', async () => {
+  const { haiMessage } = await import('../js/core.js');
+  const db = mk();
+  assert.match(haiMessage(db, buildModel(db, '2026-01-01')), /Hai/);
+  const last = cyclesFrom(db, '2026-01-01', [28, 28, 28]);
+  assert.match(haiMessage(db, buildModel(db, last)), /begonnen|Hai ist da/);
+  assert.match(haiMessage(db, buildModel(db, add(last, 2))), /Tag 3|Runden|bald müde/);
+  assert.match(haiMessage(db, buildModel(db, add(last, 26))), /2 Tagen|Anmarsch|Haiwoche/);
+  assert.match(haiMessage(db, buildModel(db, add(last, 27))), /morgen/i);
+  assert.equal(haiMessage(db, buildModel(db, add(last, 40))), null);
+  for (let i = 0; i < 28; i++) { const msg = haiMessage(db, buildModel(db, add(last, i))); assert.ok(msg && !msg.includes('{n}'), 'Platzhalter ersetzt: ' + msg); }
+});

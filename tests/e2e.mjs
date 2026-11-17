@@ -61,12 +61,17 @@ try {
     await shot(p, '01-onboarding');
     await p.fill('[data-ob=name]', 'Lea');
     await p.fill('[data-ob=start]', addD(today, -3));
+    await p.click('[data-a=obPastAdd]'); await p.fill('[data-obp="0"]', addD(today, -31));
+    await p.click('[data-a=obPastAdd]'); await p.fill('[data-obp="1"]', addD(today, -60));
     await p.click('[data-a=finishOb]');
     await p.waitForTimeout(200);
     ok(await p.isVisible('text=Lea'), 'Begrüßung mit Namen');
     ok(await p.isVisible('text=Tag 4'), 'Periode Tag 4 erkannt');
     const db = JSON.parse(await ls(p, 'liwy.v1'));
-    ok(db.v === 2 && Object.keys(db.days).length === 4, 'Daten im neuen Format gespeichert (4 Periodentage bis heute)');
+    ok(db.v === 2 && Object.keys(db.days).length === 14, 'Aktuelle + 2 frühere Perioden gespeichert');
+    ok(await p.evaluate(() => window.__liwy.model().cycles.length) === 2, 'Frühere Perioden ergeben sofort 2 Zyklen');
+    ok(await p.isVisible('.hai-b'), 'Hai-Spruch auf der Startseite');
+    ok(/Haiwoche|Hai/.test(await p.locator('.hai-b').innerText()), 'Hai-Spruch passt (Periode läuft)');
     ok(p.errors.length === 0, 'keine JS-Fehler ' + p.errors.join(' | '));
     await p.context().close();
   }
@@ -81,6 +86,10 @@ try {
     ok(await p.isVisible('text=Mia'), 'Name übernommen');
     ok(await p.isVisible('text=Tag 13') || await p.isVisible('text=Zyklustag'), 'Heute-Ansicht mit Zyklustag');
     await shot(p, '02-heute');
+    ok(await p.isVisible('text=Zeit für ein Backup'), 'Backup-Erinnerung erscheint (noch nie gesichert)');
+    await p.click('[data-a=backupLater]');
+    await p.waitForTimeout(120);
+    ok(!(await p.isVisible('text=Zeit für ein Backup')), '„Später“ blendet sie für eine Woche aus');
 
     // Schnell-Eintrag
     await p.click('[data-a=quick][data-f=moods][data-v="Glücklich"]');
