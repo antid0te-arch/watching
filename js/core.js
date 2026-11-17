@@ -388,10 +388,10 @@ export function insights(db, m, t = m.t) {
     if (m.late > 0) {
       push({ id: 'late', type: 'notice', prio: 9, title: m.lateBeyondRange ? `Periode ${tg(m.late)} später als erwartet` : 'Periode noch im erwarteten Bereich',
         text: m.lateBeyondRange
-          ? `Erwartet war sie um den ${fmtD(m.nominal)}. Stress, Krankheit, Reisen oder Gewichtsveränderungen können den Zyklus verschieben.${m.late >= 7 ? ' Wenn eine Schwangerschaft möglich ist, kann ein Test Klarheit geben. Bleibt die Periode länger aus, sprich mit deiner Frauenärztin.' : ''}`
-          : `Erwartet war der ${fmtD(m.nominal)}, aber dein üblicher Spielraum reicht bis ${fmtD(m.nextRange[1])}.` });
+          ? `Erwartet war sie um den ${fmtD(m.nominal)} – Stress, Krankheit, Reisen oder Gewichtsveränderungen können den Zyklus verschieben.${m.late >= 7 ? ' Wenn eine Schwangerschaft möglich ist, kann ein Test Klarheit geben. Bleibt die Periode länger aus, sprich mit deiner Frauenärztin.' : ''}`
+          : `Erwartet war der ${fmtD(m.nominal)}, aber dein üblicher Spielraum reicht bis zum ${fmtD(m.nextRange[1])} – noch kein Grund zur Sorge.` });
     } else {
-      push({ id: 'pred', type: 'estimate', prio: 6, title: `Nächste Periode: ${fmtD(m.next)}`, text: `Wahrscheinlicher Zeitraum: ${fmtD(m.nextRange[0])} – ${fmtD(m.nextRange[1])}. ${basis}` });
+      push({ id: 'pred', type: 'estimate', prio: 6, title: `Nächste Periode: ${fmtD(m.next)}`, text: `Wahrscheinlich zwischen ${fmtD(m.nextRange[0])} und ${fmtD(m.nextRange[1])} (± ${tg(m.uncertainty)}). ${basis}` });
     }
   }
 
@@ -484,7 +484,7 @@ export function upcoming(db, m, t = m.t) {
   const e = db.days[t] || {};
   if (m.cur && !m.late && !m.inPeriod) {
     const n = diff(t, m.next);
-    if (n >= 0 && n <= Math.max(S.reminders.periodBefore, 0)) out.push({ id: 'period', icon: 'drop', text: n === 0 ? 'Deine Periode könnte heute beginnen' : `Periode in ca. ${tg(n)} erwartet`, sub: `Zeitraum ${fmtD(m.nextRange[0])} – ${fmtD(m.nextRange[1])}` });
+    if (n >= 0 && n <= Math.max(S.reminders.periodBefore, 0)) out.push({ id: 'period', icon: 'drop', text: n === 0 ? 'Deine Periode könnte heute beginnen' : `Periode in ca. ${n === 1 ? '1 Tag' : n + ' Tagen'} erwartet`, sub: `Zeitraum ${fmtD(m.nextRange[0])} – ${fmtD(m.nextRange[1])}` });
     const fs = m.segs.find(s => (s.current || s.predicted) && add(s.ov, 1) >= t && add(s.ov, -5) <= add(t, 2));
     if (fs && S.categories.sex !== false) { const a = add(fs.ov, -5); out.push({ id: 'fert', icon: 'spark', text: a <= t ? 'Fruchtbares Fenster (geschätzt)' : `Fruchtbares Fenster ab ${fmtD(a)}`, sub: 'Schätzung – nicht zur Verhütung geeignet' }); }
   }

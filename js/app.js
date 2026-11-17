@@ -4,7 +4,7 @@ import * as T from './content.js';
 import * as St from './store.js';
 import { esc, fmt, fmtLong, fmtMonth, fmtShortMonth, tage, dec, icon, logo, bars, curve, cycleRows, heatmap, confBars, CONF_LABEL, TYPE_LABEL, gauge, phaseCurve, areaLine, donut } from './ui.js';
 
-const VERSION = '2.3';
+const VERSION = '2.4';
 const $ = s => document.querySelector(s);
 const state = {
   db: null, session: null, prefs: St.loadPrefs(), ver: 0,
@@ -260,7 +260,7 @@ function viewCal() {
     <div class="card-h"><div><h2 style="margin:0">${fmtLong(sel)}</h2><div class="small muted">${[si.cycleDay ? 'Zyklustag ' + si.cycleDay : '', si.phase ? T.PHASE[si.phase].name : ''].filter(Boolean).join(' · ')}</div></div>
     ${future ? '' : `<button class="btn sm" data-a="openSheet" data-v="${sel}">${se ? 'Bearbeiten' : 'Eintragen'}</button>`}</div>
     ${notes.length ? `<p class="small" style="color:var(--fert)">${notes.join(' · ')}</p>` : ''}
-    ${chanceOn() && si.seg ? (c => c ? `<p class="small">${chanceChip(c)} <span class="xs muted">${esc(c.reason)}</span></p>` : '')(C.chanceOf(m, days, sel)) : ''}
+    ${chanceOn() && si.seg ? (c => c ? `<div class="chance-line">${chanceChip(c)}<div class="xs muted">${esc(c.reason)}</div></div>` : '')(C.chanceOf(m, days, sel)) : ''}
     ${se ? chipsHtml(summarize(se)) + (se.note ? `<p class="tl-note">${esc(se.note)}</p>` : '') : `<p class="small muted mb0">${future ? 'Für zukünftige Tage zeigt der Kalender nur Vorhersagen.' : 'Noch kein Eintrag für diesen Tag.'}</p>`}
   </div>`;
   const next3 = m.future ? m.future.slice(0, 3) : [];
@@ -395,7 +395,6 @@ function viewMore() {
   <div class="sectitle">Privatsphäre & Daten</div><div class="list">
     ${li('lock', 'Code & Verschlüsselung', state.session ? 'Aktiv – Daten verschlüsselt' : 'Aus', 'more/privacy')}
     ${li('shield', 'Backup & Daten', s.lastBackup ? 'Letztes Backup: ' + fmt(s.lastBackup, { day: 'numeric', month: 'short', year: 'numeric' }) : 'Noch kein Backup', 'more/data')}
-    ${li('palette', 'Darstellung', { system: 'Wie iPhone', light: 'Hell', dark: 'Dunkel' }[state.prefs.theme], 'more/look')}
     ${li('info', 'Über die App', 'Version ' + VERSION + ' · Datenschutz · Grenzen', 'more/about')}
   </div></div>`;
 }
@@ -436,7 +435,7 @@ function viewTracking() {
   </div>
   <div class="card"><h2>Eigene Symptome</h2>
     <div class="chips">${s.customSymptoms.map(x => `<button class="chip" data-a="rmCustom" data-v="${esc(x)}" aria-label="${esc(x)} entfernen">${esc(x)} <span class="x">${icon('x', '')}</span></button>`).join('') || '<span class="small muted">Noch keine.</span>'}</div>
-    <div class="row mt"><input type="text" id="newCustom" placeholder="z. B. Kiefer verspannt" maxlength="40" aria-label="Neues Symptom"><button class="btn sm" data-a="addCustom">Hinzufügen</button></div>
+    <input type="text" id="newCustom" class="mt" placeholder="z. B. Kiefer verspannt" maxlength="40" aria-label="Neues Symptom"><button class="btn sec mt" data-a="addCustom">${icon('plus')}Symptom hinzufügen</button>
   </div>
   <div class="card"><h2>Pille</h2>
     ${sw('togglePill', s.pill, 'Pille abhaken', 'Erscheint auf „Heute“ und im Tagebuch')}
@@ -445,7 +444,7 @@ function viewTracking() {
   <div class="card"><h2>Medikamente</h2><p class="small muted">Lege Medikamente oder Nahrungsergänzung an, um sie täglich abzuhaken.</p>
     ${s.meds.map((md, i) => `<div class="kv"><span>${esc(md.name)}<br><span class="xs muted">${md.daily ? 'Täglich' + (md.time ? ' um ' + md.time : '') : 'Bei Bedarf'}</span></span><button class="iconbtn" data-a="rmMed" data-v="${i}" aria-label="${esc(md.name)} entfernen">${icon('trash')}</button></div>`).join('')}
     <label class="f" for="medName">Neues Medikament</label><input type="text" id="medName" placeholder="z. B. Eisen, Ibuprofen" maxlength="40">
-    <div class="row mt"><label class="row grow small"><input type="checkbox" id="medDaily" style="width:20px;height:20px;min-height:0"> täglich</label><input type="time" id="medTime" style="width:auto" aria-label="Uhrzeit"><button class="btn sm" data-a="addMed">Hinzufügen</button></div>
+    <div class="medform"><label><input type="checkbox" id="medDaily"> täglich um</label><input type="time" id="medTime" aria-label="Uhrzeit"><button class="btn sec" data-a="addMed">${icon('plus')}Medikament hinzufügen</button></div>
   </div></div>`;
 }
 
@@ -460,7 +459,8 @@ function viewReminders() {
   <div class="card"><h2>Eigene Erinnerungen</h2>
     ${(r.custom || []).map(c => `<div class="kv"><span>${esc(c.text)}<br><span class="xs muted">${rep[c.repeat || 'none']}${c.date ? ' · ab ' + fmt(c.date, { day: 'numeric', month: 'short', year: 'numeric' }) : ''}${c.time ? ' · ' + c.time : ''}</span></span><button class="iconbtn" data-a="rmRem" data-v="${esc(c.id)}" aria-label="Entfernen">${icon('trash')}</button></div>`).join('') || '<p class="small muted">Zum Beispiel Frauenarzttermin, Kontrolle, Ring wechseln.</p>'}
     <label class="f" for="remText">Text</label><input type="text" id="remText" placeholder="z. B. Frauenarzttermin" maxlength="60">
-    <div class="meas mt"><div><label for="remDate">Datum</label><input type="date" id="remDate" value="${C.todayISO()}"></div><div><label for="remTime">Uhrzeit</label><input type="time" id="remTime"></div>
+    <label class="f" for="remDate">Datum</label><input type="date" id="remDate" value="${C.todayISO()}">
+    <div class="meas mt" style="grid-template-columns:repeat(2,minmax(0,1fr))"><div><label for="remTime">Uhrzeit (optional)</label><input type="time" id="remTime"></div>
     <div><label for="remRep">Wiederholen</label><select id="remRep">${Object.entries(rep).map(([k, l]) => `<option value="${k}">${l}</option>`).join('')}</select></div></div>
     <button class="btn sec mt" data-a="addRem">${icon('plus')}Erinnerung hinzufügen</button>
   </div>
@@ -486,7 +486,7 @@ function viewReport() {
   const per = R.periods;
   return `<div class="view report">
   <div class="noprint">${backHead('Gesundheitsbericht')}
-  <div class="seg">${[['cycle', 'Letzter Zyklus'], ['3', '3 Mon.'], ['6', '6 Mon.'], ['12', '1 Jahr']].map(([k, l]) => `<button class="${r === k ? 'on' : ''}" data-a="repRange" data-v="${k}">${l}</button>`).join('')}</div>
+  <div class="seg">${[['cycle', 'Zyklus'], ['3', '3 Mon.'], ['6', '6 Mon.'], ['12', '1 Jahr']].map(([k, l]) => `<button class="${r === k ? 'on' : ''}" data-a="repRange" data-v="${k}">${l}</button>`).join('')}</div>
   <div class="btnrow mt"><button class="btn" data-a="print">${icon('doc')}PDF</button><button class="btn sec" data-a="shareReport">${icon('share')}Als Datei</button></div>
   <p class="xs muted mt">„Als PDF“ öffnet den Druckdialog – dort „Teilen“ → „In Dateien sichern“ als PDF. Falls er sich nicht öffnet, nutze „Als Datei“ und öffne sie in Safari.</p></div>
   <div id="report">
@@ -564,18 +564,6 @@ function viewData() {
   </div>`;
 }
 
-function viewLook() {
-  return `<div class="view">${backHead('Darstellung')}
-  <div class="card"><h2>Design</h2><div class="seg">${[['system', 'Wie iPhone'], ['light', 'Hell'], ['dark', 'Dunkel']].map(([k, l]) => `<button class="${state.prefs.theme === k ? 'on' : ''}" data-a="theme" data-v="${k}">${l}</button>`).join('')}</div></div>
-  <div class="card"><h2>Farben im Kalender</h2>
-    <div class="kv"><span class="row"><i class="lg" style="background:var(--mens)"></i>Periode</span><span class="small muted">eingetragen</span></div>
-    <div class="kv"><span class="row"><i class="lg" style="border:1.5px dashed var(--mens)"></i>Erwartete Periode</span><span class="small muted">Schätzung</span></div>
-    <div class="kv"><span class="row"><i class="lg" style="background:var(--foll-soft);border:1px solid var(--foll)"></i>Follikelphase</span><span class="small muted">im Ring</span></div>
-    <div class="kv"><span class="row"><i class="lg" style="background:var(--fert-soft);border:1px solid var(--fert)"></i>Fruchtbares Fenster</span><span class="small muted">Schätzung</span></div>
-    <div class="kv"><span class="row"><i class="lg" style="background:var(--lut-soft);border:1px solid var(--lut)"></i>Lutealphase</span><span class="small muted">im Ring</span></div>
-  </div></div>`;
-}
-
 function viewLibrary() {
   const tags = [...new Set(T.ARTICLES.map(a => a.tag))];
   return `<div class="view">${backHead('Wissen')}
@@ -632,7 +620,7 @@ function renderSheet(keep = false) {
   document.body.style.overflow = 'hidden';
   const d = state.sheetDay, m = model(), inf = C.dayInfo(m, state.db.days, d), e = state.db.days[d] || {}, s = S();
   const chs = chanceOn() ? C.chanceOf(m, state.db.days, d) : null;
-  const sub = [inf.cycleDay ? 'Zyklustag ' + inf.cycleDay : '', inf.phase ? T.PHASE[inf.phase].name : '', chs ? 'Chance ' + CH_LABEL[chs.level] : ''].filter(Boolean).join(' · ');
+  const sub = [inf.cycleDay ? 'Tag ' + inf.cycleDay : '', inf.phase ? { mens: 'Periode', foll: 'Follikelphase', fert: 'Fruchtbar', lut: 'Lutealphase' }[inf.phase] : '', chs ? 'Chance ' + CH_LABEL[chs.level] : ''].filter(Boolean).join(' · ');
   const symIn = g => cat(g) ? T.SYMPTOM_GROUPS[g] : [];
   const has = list => (e.symptoms || []).filter(x => list.includes(x));
   const join = a => a.slice(0, 3).join(', ') + (a.length > 3 ? ` +${a.length - 3}` : '');
@@ -928,7 +916,6 @@ const A = {
     await saving; state.session = null; St.savePlain(state.db); St.ls.del(St.ENC_KEY); render(); toast('Code entfernt');
   },
   lockAfter(el) { state.prefs.lockAfter = Number(el.dataset.v); St.savePrefs(state.prefs); render(); },
-  theme(el) { state.prefs.theme = el.dataset.v; St.savePrefs(state.prefs); applyTheme(); render(); },
   async export() {
     const json = JSON.stringify({ app: 'haiwoche', version: 2, exported: new Date().toISOString(), data: state.db }, null, 1);
     const ok = await shareOrDownload(`zyklus-backup-${C.todayISO()}.json`, json, 'application/json', 'Zyklus-Backup');
@@ -980,10 +967,7 @@ document.addEventListener('input', ev => {
 document.addEventListener('keydown', ev => { if (ev.key === 'Escape' && state.sheetDay) A.close(); });
 
 /* ---------- Darstellung ---------- */
-function applyTheme() {
-  const th = state.prefs.theme;
-  if (th === 'system') document.documentElement.removeAttribute('data-theme'); else document.documentElement.dataset.theme = th;
-}
+function applyTheme() { document.documentElement.dataset.theme = 'light'; } // App ist immer hell
 
 /* ---------- Rendern ---------- */
 function render() {
@@ -997,7 +981,7 @@ function render() {
   else if (r.tab === 'cal') html = viewCal();
   else if (r.tab === 'stats') html = viewStats();
   else if (r.tab === 'journal') html = viewJournal();
-  else html = ({ '': viewMore, cycle: viewCycleSettings, tracking: viewTracking, reminders: viewReminders, report: viewReport, partner: viewPartner, privacy: viewPrivacy, data: viewData, look: viewLook, library: viewLibrary, article: () => viewArticle(r.arg), about: viewAbout }[r.sub] || viewMore)();
+  else html = ({ '': viewMore, cycle: viewCycleSettings, tracking: viewTracking, reminders: viewReminders, report: viewReport, partner: viewPartner, privacy: viewPrivacy, data: viewData, library: viewLibrary, article: () => viewArticle(r.arg), about: viewAbout }[r.sub] || viewMore)();
   const same = main.dataset.r === location.hash;
   main.innerHTML = html;
   if (same) main.querySelectorAll('.view, .ring-anim').forEach(x => { x.style.animation = 'none'; });

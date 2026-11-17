@@ -273,7 +273,7 @@ try {
       await p3.goto(base + '#/' + r); await p3.waitForTimeout(250);
       const over = await p3.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
       ok(over <= 0, `kein horizontales Scrollen auf ${r} bei 320 px (${over})`);
-      if (r === 'today') await shot(p3, '11-dunkel');
+      if (r === 'today') { await shot(p3, '11-dunkel'); ok(await p3.evaluate(() => getComputedStyle(document.body).backgroundColor) === 'rgb(248, 240, 245)', 'bleibt hell, auch wenn das iPhone im Dunkelmodus ist'); }
     }
     await ctx.close();
   }

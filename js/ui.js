@@ -141,9 +141,9 @@ export function cycleRows(cycles, luteal, maxLen) {
 
 /* ---------- Heatmap Symptom × Phase ---------- */
 export function heatmap(list, phaseDays) {
-  const ph = [['mens', 'Periode'], ['foll', 'Follikel'], ['fert', 'Fruchtbar'], ['lut', 'Luteal']];
-  const cols = `grid-template-columns: minmax(90px, 1.4fr) repeat(4, 1fr)`;
-  let s = `<div class="heat" style="${cols}"><span></span>${ph.map(p => `<span class="center muted xs">${p[1]}</span>`).join('')}`;
+  const ph = [['mens', 'Periode'], ['foll', 'Follikel'], ['fert', 'Fruchtb.'], ['lut', 'Luteal']];
+  const cols = `grid-template-columns: minmax(0, 1.25fr) repeat(4, minmax(0, 1fr))`;
+  let s = `<div class="heat" style="${cols}"><span></span>${ph.map(p => `<span class="center muted" style="font-size:11px">${p[1]}</span>`).join('')}`;
   for (const it of list) {
     s += `<span class="n">${esc(it.name)}</span>`;
     for (const [p] of ph) {
@@ -164,7 +164,7 @@ export const TYPE_LABEL = { personal: 'Aus deinen Daten', estimate: 'Schätzung'
 
 /* ---------- Halbrunder Phasenbogen (Startseite) ---------- */
 export function gauge(m) {
-  const W = 300, H = 170, cx = 150, cy = 150, R = 124, SW = 20, A0 = -104, A1 = 104;
+  const W = 300, H = 196, cx = 150, cy = 150, R = 124, SW = 20, A0 = -104, A1 = 104;
   const pt = a => { const r = a * Math.PI / 180; return [cx + R * Math.sin(r), cy - R * Math.cos(r)]; };
   const arc = (a, b, col, extra = '') => {
     const [x0, y0] = pt(a), [x1, y1] = pt(b);
