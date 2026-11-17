@@ -46,7 +46,7 @@ const P = {
   thermo: '<path d="M10 14.5V5a2 2 0 0 1 4 0v9.5a4 4 0 1 1-4 0z"/><path d="M12 9v7"/>',
 };
 export const icon = (name, cls = '') => `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[name] || ''}</svg>`;
-export const eye = () => `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M8 32c6-10 14-15 24-15s18 5 24 15c-6 10-14 15-24 15S14 42 8 32z" fill="var(--accent)"/><circle cx="32" cy="32" r="8.5" fill="#fff"/><circle cx="32" cy="32" r="4.2" fill="#2a1418"/></svg>`;
+export const logo = () => `<svg viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="hw-f" x1="0" y1="0" x2=".4" y2="1"><stop offset="0" stop-color="#ff86b6"/><stop offset="1" stop-color="#d2408c"/></linearGradient><linearGradient id="hw-w" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#c9a4f0"/><stop offset="1" stop-color="#8fc7f2"/></linearGradient></defs><path d="M15 45C19 29 29 14 46 8c-5 11-5 25 4 37z" fill="url(#hw-f)"/><path d="M20 38c3-10 9-19 18-25" stroke="#fff" stroke-width="2.6" fill="none" stroke-linecap="round" opacity=".45"/><path d="M4 46c5-5 9-5 14 0s9 5 14 0 9-5 14 0 9 5 14 0v14H4z" fill="url(#hw-w)"/><path d="M8 53c4-3 7-3 11 0s7 3 11 0 7-3 11 0 7 3 11 0" stroke="#fff" stroke-width="2.2" fill="none" stroke-linecap="round" opacity=".6"/></svg>`;
 
 /* ---------- Zyklusring ---------- */
 export function ring(m) {

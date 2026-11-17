@@ -1,4 +1,6 @@
-# Lukas is watching you
+# Haiwoche 🦈
+
+*Keine Panik, nur Zyklus.*
 
 Privater Zyklus- und Gesundheits-Tracker als Web-App (PWA) für das iPhone.
 Läuft komplett offline: keine Accounts, keine Server, keine Abos, keine externen Dienste.

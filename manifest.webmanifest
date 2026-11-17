@@ -1,6 +1,6 @@
 {
-  "name": "Lukas is watching you",
-  "short_name": "Lukas 👀",
+  "name": "Haiwoche",
+  "short_name": "Haiwoche",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

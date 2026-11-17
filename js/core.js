@@ -475,7 +475,7 @@ const icsEsc = s => String(s).replace(/\\/g, '\\\\').replace(/;/g, '\\;').replac
 export function buildICS(db, m, opts = {}, now = new Date()) {
   const S = db.settings;
   const stamp = now.toISOString().replace(/[-:]/g, '').replace(/\.\d+Z$/, 'Z');
-  const L = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Lukas is watching you//DE', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH'];
+  const L = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Haiwoche//DE', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH'];
   const ev = (uid, start, end, title, desc, alarm, rrule, time) => {
     L.push('BEGIN:VEVENT', `UID:${uid}@liwy.local`, `DTSTAMP:${stamp}`);
     if (time) { const hm = time.replace(':', '') + '00'; L.push(`DTSTART:${icsDate(start)}T${hm}`, `DTEND:${icsDate(start)}T${hm}`); }
@@ -489,7 +489,7 @@ export function buildICS(db, m, opts = {}, now = new Date()) {
   if (opts.periods !== false && m.cur) {
     m.future.slice(0, opts.count || 6).forEach((s, i) => {
       const before = S.reminders.periodBefore || 0;
-      ev(`period-${i}-${s.start}`, s.start, add(s.end, 1), '🩸 Periode erwartet (Schätzung)', `Geschätzter Zeitraum ± ${s.unc} Tage. Erstellt von „Lukas is watching you“.`, before > 0 ? `-P${before}DT0H0M0S` : '-PT0M', null, null);
+      ev(`period-${i}-${s.start}`, s.start, add(s.end, 1), '🩸 Periode erwartet (Schätzung)', `Geschätzter Zeitraum ± ${s.unc} Tage. Erstellt von „Haiwoche“.`, before > 0 ? `-P${before}DT0H0M0S` : '-PT0M', null, null);
     });
   }
   if (opts.fertile && m.cur) m.future.slice(0, opts.count || 6).forEach((s, i) => ev(`fert-${i}-${s.ov}`, add(s.ov, -5), add(s.ov, 2), 'Fruchtbares Fenster (Schätzung)', 'Nur eine Schätzung – nicht zur Verhütung geeignet.', null, null, null));

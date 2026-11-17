@@ -1,10 +1,10 @@
-// Lukas is watching you – App-Steuerung, Ansichten und Aktionen.
+// Haiwoche – App-Steuerung, Ansichten und Aktionen.
 import * as C from './core.js';
 import * as T from './content.js';
 import * as St from './store.js';
-import { esc, fmt, fmtLong, fmtMonth, fmtShortMonth, tage, dec, icon, eye, bars, curve, cycleRows, heatmap, confBars, CONF_LABEL, TYPE_LABEL, gauge, phaseCurve, areaLine, donut } from './ui.js';
+import { esc, fmt, fmtLong, fmtMonth, fmtShortMonth, tage, dec, icon, logo, bars, curve, cycleRows, heatmap, confBars, CONF_LABEL, TYPE_LABEL, gauge, phaseCurve, areaLine, donut } from './ui.js';
 
-const VERSION = '2.1';
+const VERSION = '2.2';
 const $ = s => document.querySelector(s);
 const state = {
   db: null, session: null, prefs: St.loadPrefs(), ver: 0,
@@ -102,8 +102,9 @@ const chipsHtml = items => `<div class="mini-chips">${items.map(i => `<span clas
 function viewOnboarding() {
   const o = state.ob;
   return `<div class="view" style="padding-top:28px">
-    <div class="center"><div style="width:84px;height:84px;margin:0 auto">${eye()}</div>
-    <h1 style="margin:10px 0 6px">Lukas is watching you</h1>
+    <div class="center"><div style="width:96px;height:96px;margin:0 auto">${logo()}</div>
+    <h1 style="margin:10px 0 2px">Haiwoche</h1>
+    <p style="margin:0 0 10px;color:var(--sel);font-weight:600">Keine Panik, nur Zyklus.</p>
     <p class="muted" style="margin:0 0 24px">Dein privater Zyklus-Tracker. Alles bleibt auf diesem iPhone – ohne Account, ohne Internet, ohne Abo.</p></div>
     <div class="card">
       <label class="f" style="margin-top:0" for="ob-name">Wie heißt du? (optional)</label>
@@ -201,7 +202,7 @@ function viewToday() {
 
   return `<div class="view">
   <div class="hello"><div class="grow"><div class="hi">Hallo${name ? ', ' + esc(name) : ''} 👋</div><h1>${q}</h1></div>
-    <button class="avatar" data-a="go" data-v="more" aria-label="Mehr">${name ? esc(name.trim()[0].toUpperCase()) : `<span style="width:30px;height:30px">${eye()}</span>`}</button></div>
+    <button class="avatar" data-a="go" data-v="more" aria-label="Mehr">${name ? esc(name.trim()[0].toUpperCase()) : `<span style="width:30px;height:30px">${logo()}</span>`}</button></div>
   ${capsules(m)}
   ${ios && !standalone ? `<div class="card tint"><h2>Als App installieren</h2><p class="small mb0">Tippe in Safari auf <b>Teilen</b> → <b>Zum Home-Bildschirm</b>. Erst dann bleiben deine Daten dauerhaft gespeichert.</p></div>` : ''}
   <div class="card hero">
@@ -478,7 +479,7 @@ function viewReport() {
   <div class="btnrow mt"><button class="btn" data-a="print">${icon('doc')}PDF</button><button class="btn sec" data-a="shareReport">${icon('share')}Als Datei</button></div>
   <p class="xs muted mt">„Als PDF“ öffnet den Druckdialog – dort „Teilen“ → „In Dateien sichern“ als PDF. Falls er sich nicht öffnet, nutze „Als Datei“ und öffne sie in Safari.</p></div>
   <div id="report">
-  <div class="card"><div class="row"><div style="width:36px;height:36px">${eye()}</div><div><h2 style="margin:0">Zyklusbericht${S().name ? ' – ' + esc(S().name) : ''}</h2><div class="small muted">${fmt(from, { day: 'numeric', month: 'long', year: 'numeric' })} – ${fmt(t, { day: 'numeric', month: 'long', year: 'numeric' })}</div></div></div></div>
+  <div class="card"><div class="row"><div style="width:36px;height:36px">${logo()}</div><div><h2 style="margin:0">Zyklusbericht${S().name ? ' – ' + esc(S().name) : ''}</h2><div class="small muted">${fmt(from, { day: 'numeric', month: 'long', year: 'numeric' })} – ${fmt(t, { day: 'numeric', month: 'long', year: 'numeric' })}</div></div></div></div>
   <div class="card"><h2>Überblick</h2>
     <div class="kv"><span>Ø Zykluslänge (gesamt)</span><b>${m.nUsed ? tage(m.avgCycle) + ' (± ' + dec(m.sd) + ')' : '–'}</b></div>
     <div class="kv"><span>Spanne der letzten Zyklen</span><b>${m.lens.length ? Math.min(...m.lens.slice(-6)) + '–' + Math.max(...m.lens.slice(-6)) + ' Tage' : '–'}</b></div>
@@ -498,7 +499,7 @@ function viewReport() {
   ${R.months.length ? `<div class="card"><h2>Verlauf je Monat</h2><table class="tbl"><thead><tr><th>Monat</th><th>Periode</th><th>Schmerz</th><th>Energie</th><th>Schlaf</th></tr></thead><tbody>${R.months.map(x => `<tr><td>${fmtMonth(x.key)}</td><td>${x.periodDays || '–'}</td><td>${dec(x.pain)}</td><td>${dec(x.energy)}</td><td>${x.sleep == null ? '–' : dec(x.sleep) + ' h'}</td></tr>`).join('')}</tbody></table><p class="xs muted mt mb0">Schmerz 0–3, Energie 1–5 (Durchschnitt der Einträge).</p></div>` : ''}
   ${ins.length ? `<div class="card"><h2>Beobachtungen</h2>${ins.slice(0, 6).map(i => `<p class="small"><b>${esc(i.title)}</b> (${TYPE_LABEL[i.type]}): ${esc(i.text)}</p>`).join('')}</div>` : ''}
   ${R.notes.length ? `<div class="card"><h2>Notizen</h2>${R.notes.slice(-15).map(([d, e]) => `<p class="small"><b>${fmt(d, { day: 'numeric', month: 'short' })}:</b> ${esc(e.note)}</p>`).join('')}</div>` : ''}
-  <p class="xs muted">Erstellt am ${fmt(t, { day: 'numeric', month: 'long', year: 'numeric' })} mit „Lukas is watching you“. Selbst erfasste Daten; Eisprung- und Periodenangaben sind Schätzungen. Keine Diagnose.</p>
+  <p class="xs muted">Erstellt am ${fmt(t, { day: 'numeric', month: 'long', year: 'numeric' })} mit „Haiwoche“. Selbst erfasste Daten; Eisprung- und Periodenangaben sind Schätzungen. Keine Diagnose.</p>
   </div></div>`;
 }
 
@@ -582,7 +583,7 @@ function viewArticle(id) {
 
 function viewAbout() {
   return `<div class="view">${backHead('Über die App')}
-  <div class="card center"><div style="width:64px;height:64px;margin:0 auto">${eye()}</div><h2 style="margin:8px 0 2px">Lukas is watching you</h2><p class="small muted mb0">Version ${VERSION} · mit ❤️ gebaut. (Lukas sieht natürlich nichts.)</p></div>
+  <div class="card center"><div style="width:64px;height:64px;margin:0 auto">${logo()}</div><h2 style="margin:8px 0 2px">Haiwoche</h2><p class="small mb0" style="color:var(--sel)">Keine Panik, nur Zyklus.</p><p class="small muted mb0">Version ${VERSION} · mit ❤️ gebaut</p></div>
   <div class="card"><h2>Datenschutz</h2><ul class="small" style="padding-left:18px;margin:0">
     <li>Alle Daten bleiben auf diesem Gerät (lokaler Speicher), optional verschlüsselt.</li>
     <li>Keine Accounts, keine Server, keine Werbung, keine Analyse-Tools, keine Drittanbieter.</li>
@@ -671,7 +672,7 @@ function renderLock(shake) {
   const unlock = pin.mode.startsWith('unlock');
   const title = unlock ? 'Code eingeben' : pin.mode === 'set1' ? 'Neuen Code wählen' : 'Code wiederholen';
   const keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', unlock ? 'forgot' : 'cancel', '0', 'del'];
-  el.innerHTML = `<div style="width:64px;height:64px">${eye()}</div>
+  el.innerHTML = `<div style="width:64px;height:64px">${logo()}</div>
     <div style="font-size:20px;font-weight:650;margin-top:10px">${title}</div>
     <div class="small muted" style="min-height:20px;margin-top:4px" role="status">${pin.busy ? 'Wird entschlüsselt …' : pin.msg}</div>
     ${pin.busy ? '<div style="margin:30px 0 54px"><div class="spinner"></div></div>' : `<div class="pdots ${shake ? 'shake' : ''}" aria-hidden="true">${[0, 1, 2, 3].map(i => `<i class="${i < pin.buf.length ? 'on' : ''}"></i>`).join('')}</div>`}
@@ -916,7 +917,7 @@ const A = {
   lockAfter(el) { state.prefs.lockAfter = Number(el.dataset.v); St.savePrefs(state.prefs); render(); },
   theme(el) { state.prefs.theme = el.dataset.v; St.savePrefs(state.prefs); applyTheme(); render(); },
   async export() {
-    const json = JSON.stringify({ app: 'lukas-is-watching-you', version: 2, exported: new Date().toISOString(), data: state.db }, null, 1);
+    const json = JSON.stringify({ app: 'haiwoche', version: 2, exported: new Date().toISOString(), data: state.db }, null, 1);
     const ok = await shareOrDownload(`zyklus-backup-${C.todayISO()}.json`, json, 'application/json', 'Zyklus-Backup');
     if (ok) { S().lastBackup = C.todayISO(); commit(); toast('Backup erstellt'); }
   },
