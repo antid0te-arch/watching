@@ -84,6 +84,7 @@ export const SOURCES = {
   whoEndo: { name: 'WHO – Endometriosis (Fact sheet)', url: 'https://www.who.int/news-room/fact-sheets/detail/endometriosis' },
   acogCycle: { name: 'ACOG – Your Changing Body: Puberty / Menstrual cycle FAQs', url: 'https://www.acog.org/womens-health/faqs' },
   fin: { name: 'Frauenärzte im Netz (Berufsverband der Frauenärzte)', url: 'https://www.frauenaerzte-im-netz.de/' },
+  wilcox: { name: 'Wilcox AJ, Weinberg CR, Baird DD: Timing of sexual intercourse in relation to ovulation. N Engl J Med 1995;333:1517–21', url: 'https://www.nejm.org/doi/full/10.1056/NEJM199512073332301' },
 };
 
 export const ARTICLES = [
@@ -143,6 +144,16 @@ export const ARTICLES = [
 <p><b>Zervixschleim</b> verändert sich im Zyklus: nach der Periode eher trocken oder klebrig, dann cremig und um den Eisprung klar, dehnbar und „eiweißartig“.</p>
 <p><b>Wichtig:</b> Natürliche Familienplanung kann als Verhütungsmethode nur mit genauer Anleitung, konsequenter Anwendung und meist mehreren Körperzeichen zuverlässig sein. Diese App ist <b>kein</b> Verhütungsmittel.</p>`,
     sources: ['nhsNfp'],
+  },
+  {
+    id: 'chance', title: 'Wie die App die Schwangerschaftschance schätzt', tag: 'Zyklus', mins: 2,
+    body: `<p>Eine Schwangerschaft ist nur an wenigen Tagen im Zyklus möglich: Spermien überleben bis zu 5 Tage, die Eizelle etwa einen Tag. Eine bekannte Studie (Wilcox et al., 1995) hat gemessen, wie wahrscheinlich eine Schwangerschaft nach ungeschütztem Sex an einem bestimmten Tag ist:</p>
+<ul><li>5 bis 3 Tage vor dem Eisprung: etwa 10–16 %</li><li>2 Tage vorher bis zum Tag des Eisprungs: etwa 27–33 %</li><li>danach: nahezu 0 %</li></ul>
+<p>Die Werte stammen von Paaren mit Kinderwunsch und gelten pro Zyklus. Für einzelne Menschen können sie deutlich abweichen.</p>
+<h3>So rechnet die App</h3><p>Den Eisprung kennt die App nicht, sie schätzt ihn aus deinen Zyklen. Wie unsicher diese Schätzung ist, hängt davon ab, wie stark deine Zyklen schwanken. Die App verteilt die Studienwerte deshalb über alle Tage, an denen der Eisprung plausibel ist. Bei unregelmäßigen Zyklen gibt es so mehr Tage mit „mittel“ und seltener ein klares „hoch“. Misst du deine Basaltemperatur und die App erkennt einen Anstieg, gilt der Eisprung als vorbei und die Chance danach als niedrig.</p>
+<p>Angezeigt wird eine Stufe: <b>hoch</b> (ab ca. 15 %), <b>mittel</b> (ca. 4–15 %), <b>niedrig</b> (darunter).</p>
+<h3>Wichtig</h3><p><b>„Niedrig“ heißt nicht „sicher“.</b> Eisprünge können sich verschieben, etwa durch Stress oder Krankheit. Diese Anzeige ist kein Verhütungsmittel. Bei hormoneller Verhütung ist sie nicht aussagekräftig und wird ausgeblendet.</p>`,
+    sources: ['wilcox', 'nhsNfp'],
   },
   {
     id: 'endometriose', title: 'Endometriose', tag: 'Erkrankungen', mins: 2,

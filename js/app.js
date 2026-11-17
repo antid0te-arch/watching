@@ -4,7 +4,7 @@ import * as T from './content.js';
 import * as St from './store.js';
 import { esc, fmt, fmtLong, fmtMonth, fmtShortMonth, tage, dec, icon, logo, bars, curve, cycleRows, heatmap, confBars, CONF_LABEL, TYPE_LABEL, gauge, phaseCurve, areaLine, donut } from './ui.js';
 
-const VERSION = '2.2';
+const VERSION = '2.3';
 const $ = s => document.querySelector(s);
 const state = {
   db: null, session: null, prefs: St.loadPrefs(), ver: 0,
@@ -33,6 +33,9 @@ function persist() {
 function commit(opts = {}) { state.ver++; persist(); if (!opts.silent) render(); }
 const S = () => state.db.settings;
 const cat = id => S().categories[id] !== false;
+const chanceOn = () => S().chance !== false && !S().pill;
+const CH_LABEL = { low: 'niedrig', medium: 'mittel', high: 'hoch' };
+function chanceChip(c) { return c ? `<span class="chance ch-${c.level}"><i></i>Schwangerschaftschance: <b>${CH_LABEL[c.level]}</b></span>` : ''; }
 
 function setField(d, f, v) {
   const days = state.db.days;
@@ -70,6 +73,7 @@ function dayCell(m, d, extra = '') {
   const marks = [];
   if (inf.has) marks.push('<i></i>');
   if (e && e.note) marks.push('<i class="n"></i>');
+  if (chanceOn() && (inf.fert || inf.ov || d >= m.t)) { const c = C.chanceOf(m, state.db.days, d); if (c && c.level !== 'low') marks.push(`<i class="ch ${c.level === 'high' ? 'h' : 'm'}" title="Chance ${CH_LABEL[c.level]}"></i>`); }
   const lbl = `${fmtLong(d)}${inf.logged ? ', Periode' : inf.pred ? ', Periode erwartet' : inf.ov ? ', Eisprung geschätzt' : inf.fert ? ', fruchtbar geschätzt' : ''}${inf.has ? ', mit Eintrag' : ''}`;
   return `<button class="${cls.join(' ')} ${extra}" data-a="day" data-v="${d}" aria-label="${lbl}"><span class="dn">${C.parse(d).getDate()}</span><span class="mk">${marks.join('')}</span></button>`;
 }
@@ -167,7 +171,8 @@ function viewToday() {
     const n = C.diff(t, m.next);
     const nextTxt = m.inPeriod ? `Nächste Periode ca. ${fmt(m.future[0] ? m.future[0].start : m.next)}` : m.late > 0 ? `Erwartet war der ${fmt(m.nominal)}` : n === 0 ? 'Periode könnte heute beginnen' : `Periode in ${n === 1 ? '1 Tag' : n + ' Tagen'} · ${fmt(m.nextRange[0])}–${fmt(m.nextRange[1])}`;
     const fs = m.segs.find(x => (x.current || x.predicted) && C.add(x.ov, 1) >= t);
-    status = `<div class="status"><b>${nextTxt}</b><div class="row" style="justify-content:center;gap:12px;margin-top:6px"><span class="conf">${confBars(m.confidence)} ${CONF_LABEL[m.confidence]}</span>${fs ? `<span class="xs muted">Eisprung ca. ${fmt(fs.ov)}*</span>` : ''}</div></div>`;
+    const ch = chanceOn() ? C.chanceOf(m, state.db.days, t) : null;
+    status = `<div class="status"><b>${nextTxt}</b><div class="row" style="justify-content:center;gap:12px;margin-top:6px"><span class="conf">${confBars(m.confidence)} ${CONF_LABEL[m.confidence]}</span>${fs ? `<span class="xs muted">Eisprung ca. ${fmt(fs.ov)}*</span>` : ''}</div>${ch ? `<div style="margin-top:10px">${chanceChip(ch)}<div class="xs muted" style="margin-top:4px">${esc(ch.reason)} · Schätzung, kein Verhütungsmittel</div></div>` : ''}</div>`;
   }
   const legend = `<div class="dots"><span><i style="background:var(--mens)"></i>Menstruation</span><span><i style="background:var(--foll)"></i>Follikelphase</span><span><i style="background:var(--fert)"></i>Fruchtbar*</span><span><i style="background:var(--lut)"></i>Lutealphase</span></div>`;
 
@@ -255,6 +260,7 @@ function viewCal() {
     <div class="card-h"><div><h2 style="margin:0">${fmtLong(sel)}</h2><div class="small muted">${[si.cycleDay ? 'Zyklustag ' + si.cycleDay : '', si.phase ? T.PHASE[si.phase].name : ''].filter(Boolean).join(' · ')}</div></div>
     ${future ? '' : `<button class="btn sm" data-a="openSheet" data-v="${sel}">${se ? 'Bearbeiten' : 'Eintragen'}</button>`}</div>
     ${notes.length ? `<p class="small" style="color:var(--fert)">${notes.join(' · ')}</p>` : ''}
+    ${chanceOn() && si.seg ? (c => c ? `<p class="small">${chanceChip(c)} <span class="xs muted">${esc(c.reason)}</span></p>` : '')(C.chanceOf(m, days, sel)) : ''}
     ${se ? chipsHtml(summarize(se)) + (se.note ? `<p class="tl-note">${esc(se.note)}</p>` : '') : `<p class="small muted mb0">${future ? 'Für zukünftige Tage zeigt der Kalender nur Vorhersagen.' : 'Noch kein Eintrag für diesen Tag.'}</p>`}
   </div>`;
   const next3 = m.future ? m.future.slice(0, 3) : [];
@@ -276,6 +282,7 @@ function viewCal() {
       <span><i class="lg" style="background:var(--fert)"></i>Eisprung*</span>
       <span><i class="lg" style="width:6px;height:6px;background:var(--muted)"></i>Eintrag</span>
       <span><i class="lg" style="width:6px;height:6px;background:var(--accent)"></i>Notiz</span>
+      ${chanceOn() ? '<span><i class="lg" style="width:12px;height:4px;border-radius:2px;background:var(--fert)"></i>Chance hoch*</span><span><i class="lg" style="width:12px;height:4px;border-radius:2px;background:var(--fert);opacity:.4"></i>mittel*</span>' : ''}
     </div>
     ${state.calEdit ? '' : `<div class="chips scroll mt" role="group" aria-label="Filter">${filters.map(([k, l]) => `<button class="chip ${state.calFilter === k ? 'on' : ''}" data-a="calFilter" data-v="${k}">${l}</button>`).join('')}
       ${symOpts.length ? `<select data-a="calFilterSel" aria-label="Nach Symptom filtern" style="width:auto;min-height:38px;padding:6px 12px;border-radius:999px;font-size:15px"><option value="">Symptom …</option>${symOpts.map(s => `<option value="s:${esc(s)}" ${state.calFilter === 's:' + s ? 'selected' : ''}>${esc(s)}</option>`).join('')}</select>` : ''}</div>
@@ -422,6 +429,10 @@ function viewTracking() {
   return `<div class="view">${backHead('Tracking anpassen')}
   <div class="card"><h2>Kategorien</h2><p class="small muted">Was du ausschaltest, verschwindet aus dem Eintragen. Bereits gespeicherte Daten bleiben erhalten.</p>
     ${T.CATEGORIES.map(c => sw('toggleCat', cat(c.id), c.label, c.desc, `data-k="${c.id}"`)).join('')}
+  </div>
+  <div class="card"><h2>Schwangerschaftschance</h2>
+    ${sw('toggleChance', s.chance !== false, 'Tägliche Chance anzeigen', s.pill ? 'Ausgeblendet, solange „Pille abhaken“ an ist' : 'Niedrig / mittel / hoch – auf Heute, im Kalender und beim Eintragen')}
+    <p class="xs muted mt mb0">Eine Schätzung aus deinem Zyklus, kein Verhütungsmittel. <button class="link xs" data-a="go" data-v="more/article/chance">So wird gerechnet</button></p>
   </div>
   <div class="card"><h2>Eigene Symptome</h2>
     <div class="chips">${s.customSymptoms.map(x => `<button class="chip" data-a="rmCustom" data-v="${esc(x)}" aria-label="${esc(x)} entfernen">${esc(x)} <span class="x">${icon('x', '')}</span></button>`).join('') || '<span class="small muted">Noch keine.</span>'}</div>
@@ -620,7 +631,8 @@ function renderSheet(keep = false) {
   const prevScroll = keep && el.querySelector('.sheet') ? el.querySelector('.sheet').scrollTop : 0;
   document.body.style.overflow = 'hidden';
   const d = state.sheetDay, m = model(), inf = C.dayInfo(m, state.db.days, d), e = state.db.days[d] || {}, s = S();
-  const sub = [inf.cycleDay ? 'Zyklustag ' + inf.cycleDay : '', inf.phase ? T.PHASE[inf.phase].name : ''].filter(Boolean).join(' · ');
+  const chs = chanceOn() ? C.chanceOf(m, state.db.days, d) : null;
+  const sub = [inf.cycleDay ? 'Zyklustag ' + inf.cycleDay : '', inf.phase ? T.PHASE[inf.phase].name : '', chs ? 'Chance ' + CH_LABEL[chs.level] : ''].filter(Boolean).join(' · ');
   const symIn = g => cat(g) ? T.SYMPTOM_GROUPS[g] : [];
   const has = list => (e.symptoms || []).filter(x => list.includes(x));
   const join = a => a.slice(0, 3).join(', ') + (a.length > 3 ? ` +${a.length - 3}` : '');
@@ -878,6 +890,7 @@ const A = {
   },
   toggleCat(el) { S().categories[el.dataset.k] = el.checked; commit({ silent: true }); },
   togglePill(el) { S().pill = el.checked; commit(); },
+  toggleChance(el) { S().chance = el.checked; commit(); },
   addCustom() {
     const inp = $('#newCustom'), v = inp.value.trim().replace(/\s+/g, ' ');
     if (!v) return;

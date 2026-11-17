@@ -1,5 +1,5 @@
 // Offline-Cache. Bei jeder neuen Version CACHE erhöhen.
-const CACHE = 'liwy-v2.2.0';
+const CACHE = 'liwy-v2.3.0';
 const FILES = ['./', './index.html', './css/app.css', './js/app.js', './js/core.js', './js/ui.js', './js/store.js', './js/content.js',
   './manifest.webmanifest', './apple-touch-icon.png', './icon-192.png', './icon-512.png'];
 self.addEventListener('install', e => {

@@ -39,11 +39,12 @@ Daten der Version 1 (gleicher Speicherschlüssel `liwy.v1`) werden beim Start au
 - Unsicherheit = Streuung der Zyklen → Zeitraum ± n Tage, wächst für spätere Zyklen (√k).
 - Eisprung = nächste Periode − Lutealphase. Die Lutealphase wird aus Temperaturkurven gelernt (3-über-6-Regel), sonst Einstellung.
 - Treffergenauigkeit wird rückblickend berechnet (Vorhersage zu Beginn jedes Zyklus vs. tatsächlich).
+- Schwangerschaftschance je Tag: Wilcox-Werte (NEJM 1995, Tag −5 bis 0 relativ zum Eisprung), gemittelt über eine Normalverteilung des Eisprung-Termins (Streuung aus Zyklus-Schwankung + 1,5 Tage Lutealphase; nach Temperaturanstieg 0,7 Tage). Angezeigt als niedrig / mittel (≥ 4 %) / hoch (≥ 15 %). Bei Pille ausgeblendet.
 
 ## Tests
 ```bash
-npm test          # 20 Unit-Tests für den Rechenkern (node:test)
-npm run e2e       # 50 Browser-Prüfungen im simulierten iPhone (Playwright/Chromium)
+npm test          # 23 Unit-Tests für den Rechenkern (node:test)
+npm run e2e       # 54 Browser-Prüfungen im simulierten iPhone (Playwright/Chromium)
 ```
 
 ## Bestandsaufnahme vor dem Upgrade (v1 → v2)

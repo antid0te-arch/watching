@@ -24,7 +24,7 @@ export const PHASES = ['mens', 'foll', 'fert', 'lut'];
 export const CATEGORY_IDS = ['pain', 'body', 'digestion', 'skin', 'mood', 'energy', 'sleep', 'activity', 'mucus', 'temp', 'weight', 'sex', 'meds', 'notes'];
 export const DEFAULT_SETTINGS = {
   name: '', cycleLen: 28, periodLen: 5, luteal: 14,
-  pill: false, pillTime: '20:00', lastBackup: null,
+  pill: false, pillTime: '20:00', lastBackup: null, chance: true,
   categories: Object.fromEntries(CATEGORY_IDS.map(c => [c, true])),
   customSymptoms: [], meds: [],
   reminders: { periodBefore: 2, logTime: '21:00', custom: [] },
@@ -238,6 +238,44 @@ export function dayInfo(m, days, d) {
   r.phase = (r.logged || r.pred || inP) ? 'mens' : (r.ov || r.fert) ? 'fert' : d < s.ov ? 'foll' : 'lut';
   if (r.ov) r.phaseDetail = 'ov';
   return r;
+}
+
+/* ---------- Schwangerschaftschance (Schätzung) ---------- */
+// Tagesbezogene Wahrscheinlichkeiten relativ zum Eisprung (Tag 0) nach
+// Wilcox, Weinberg & Baird, NEJM 1995;333:1517–21 – ungeschützter Sex an genau diesem Tag.
+export const WILCOX = { '-5': 0.10, '-4': 0.16, '-3': 0.14, '-2': 0.27, '-1': 0.31, '0': 0.33 };
+const LUTEAL_SD = 1.5; // natürliche Schwankung der Lutealphase in Tagen
+
+/** Unsicherheit (Standardabweichung in Tagen) des geschätzten Eisprungs eines Zyklusabschnitts. */
+export function ovulationSd(m, s) {
+  if (s.ovSource === 'temp') return 0.7;
+  if (s.predicted) { const k = m.future.indexOf(s) + 1; return Math.min(8, Math.sqrt(LUTEAL_SD ** 2 + (m.sd * Math.sqrt(Math.max(1, k))) ** 2)); }
+  if (s.current) return Math.min(8, Math.sqrt(LUTEAL_SD ** 2 + m.sd ** 2));
+  return LUTEAL_SD; // abgeschlossener Zyklus: nächste Periode bekannt
+}
+
+/**
+ * Geschätzte Chance, an Tag d schwanger zu werden (bei ungeschütztem Sex).
+ * Mittelt die Wilcox-Werte über die Unsicherheit des Eisprung-Termins.
+ * level: 'low' | 'medium' | 'high'. Keine Verhütungsmethode!
+ */
+export function chanceOf(m, days, d) {
+  const s = segOf(m, d);
+  if (!s) return null;
+  const e = days[d];
+  const rel = diff(s.ov, d);
+  const reason = rel < -5 ? 'Vor dem fruchtbaren Fenster' : rel < 0 ? `${-rel === 1 ? '1 Tag' : -rel + ' Tage'} vor dem geschätzten Eisprung` : rel === 0 ? 'Tag des geschätzten Eisprungs' : 'Nach dem geschätzten Eisprung';
+  if (e && isFlow(e.flow)) return { level: 'low', p: 0, reason: 'Periode' };
+  const sd = ovulationSd(m, s), R = Math.ceil(3 * sd);
+  let p = 0, norm = 0;
+  for (let o = -R; o <= R; o++) {
+    const w = Math.exp(-(o * o) / (2 * sd * sd));
+    norm += w;
+    p += w * (WILCOX[diff(add(s.ov, o), d)] || 0);
+  }
+  p /= norm;
+  if (s.ovSource === 'temp' && rel > 1) p = Math.min(p, 0.01); // Anstieg gemessen: Eisprung vorbei
+  return { level: p >= 0.15 ? 'high' : p >= 0.04 ? 'medium' : 'low', p, reason, sd, ovSource: s.ovSource };
 }
 
 /* ---------- Analyse ---------- */

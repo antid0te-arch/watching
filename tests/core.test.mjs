@@ -237,3 +237,41 @@ test('Partner-Text enthält nur ausgewählte Informationen', () => {
   assert.ok(!txt.includes('Ungeschützt'));
   assert.ok(!txt.includes('Nächste Periode'));
 });
+
+test('Schwangerschaftschance: hoch um den Eisprung, niedrig in Periode und Lutealphase', async () => {
+  const { chanceOf } = await import('../js/core.js');
+  const db = mk();
+  const last = cyclesFrom(db, '2026-01-01', [28, 28, 28, 28, 28, 28]);
+  const m = buildModel(db, add(last, 3));
+  const ov = m.cur.ov;
+  assert.equal(chanceOf(m, db.days, ov).level, 'high');
+  assert.equal(chanceOf(m, db.days, add(ov, -1)).level, 'high');
+  assert.equal(chanceOf(m, db.days, add(ov, -2)).level, 'high');
+  assert.equal(chanceOf(m, db.days, last).level, 'low');          // Periodentag
+  assert.equal(chanceOf(m, db.days, add(ov, 6)).level, 'low');    // Lutealphase
+  assert.equal(chanceOf(m, db.days, add(last, 4)).level, 'low');  // früh im Zyklus
+  assert.ok(chanceOf(m, db.days, add(ov, -1)).p > chanceOf(m, db.days, add(ov, -4)).p);
+  assert.ok(chanceOf(m, db.days, ov).p <= 0.33);
+  assert.equal(chanceOf(buildModel(mk(), '2026-01-01'), {}, '2026-01-01'), null);
+});
+
+test('Schwangerschaftschance: bei unregelmäßigen Zyklen breiter und vorsichtiger', async () => {
+  const { chanceOf } = await import('../js/core.js');
+  const reg = mk(); const l1 = cyclesFrom(reg, '2026-01-01', [28, 28, 28, 28, 28]);
+  const irr = mk(); const l2 = cyclesFrom(irr, '2026-01-01', [22, 36, 25, 40, 28]);
+  const mr = buildModel(reg, add(l1, 2)), mi = buildModel(irr, add(l2, 2));
+  const count = (m, db, from) => { let n = 0; for (let i = 0; i < 45; i++) if (chanceOf(m, db.days, add(from, i)).level !== 'low') n++; return n; };
+  assert.ok(count(mi, irr, l2) > count(mr, reg, l1), 'mehr Tage mit erhöhter Chance bei unregelmäßigem Zyklus');
+  assert.ok(chanceOf(mi, irr.days, mi.cur.ov).p < chanceOf(mr, reg.days, mr.cur.ov).p, 'Spitze niedriger, weil Eisprung unsicherer');
+});
+
+test('Schwangerschaftschance: nach gemessenem Temperaturanstieg niedrig', async () => {
+  const { chanceOf } = await import('../js/core.js');
+  const db = mk();
+  const last = cyclesFrom(db, '2026-01-01', [28, 28, 28]);
+  for (let d = 4; d <= 20; d++) db.days[add(last, d)] = { ...(db.days[add(last, d)] || {}), temp: d < 15 ? 36.4 + (d % 2) * 0.03 : 36.75 };
+  const m = buildModel(db, add(last, 20));
+  assert.equal(m.cur.ovSource, 'temp');
+  assert.equal(chanceOf(m, db.days, add(m.cur.ov, 3)).level, 'low');
+  assert.ok(chanceOf(m, db.days, add(m.cur.ov, 3)).p <= 0.01);
+});

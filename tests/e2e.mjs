@@ -171,6 +171,18 @@ try {
     await p.click('[data-a=addCustom]');
     ok(JSON.parse(await ls(p, 'liwy.v1')).settings.customSymptoms.includes('Kiefer verspannt'), 'Eigenes Symptom angelegt');
 
+    // Schwangerschaftschance: bei Pille ausgeblendet, sonst sichtbar
+    await p.evaluate(() => { location.hash = '/today'; }); await p.waitForTimeout(120);
+    ok(!(await p.isVisible('text=Schwangerschaftschance')), 'Chance bei Pille ausgeblendet');
+    await p.evaluate(() => { location.hash = '/more/tracking'; }); await p.waitForTimeout(120);
+    await p.click('[data-a=togglePill]');
+    await p.evaluate(() => { location.hash = '/today'; }); await p.waitForTimeout(120);
+    ok(await p.isVisible('text=Schwangerschaftschance'), 'Chance auf „Heute“ sichtbar');
+    await p.evaluate(() => { location.hash = '/cal'; }); await p.waitForTimeout(120);
+    ok(await p.locator('.calgrid .mk i.ch').count() >= 3, 'Chance-Markierungen im Kalender');
+    await p.evaluate(() => { location.hash = '/more/article/chance'; }); await p.waitForTimeout(120);
+    ok(await p.isVisible('text=Wilcox'), 'Erklärartikel mit Quelle');
+
     // Erinnerung + Kalender-Export
     await p.evaluate(() => { location.hash = '/more/reminders'; });
     await p.waitForTimeout(100);
@@ -179,7 +191,7 @@ try {
     await p.click('[data-a=addRem]');
     const [ics] = await Promise.all([p.waitForEvent('download'), p.click('[data-a=exportIcs]')]);
     const icsTxt = fs.readFileSync(await ics.path(), 'utf8');
-    ok(icsTxt.includes('BEGIN:VCALENDAR') && icsTxt.includes('Frauenärztin') && icsTxt.includes('Pille'), 'Kalenderdatei mit Perioden, Pille und Termin');
+    ok(icsTxt.includes('BEGIN:VCALENDAR') && icsTxt.includes('Frauenärztin') && icsTxt.includes('Periode erwartet'), 'Kalenderdatei mit Perioden und Termin');
     await p.evaluate(() => { location.hash = '/today'; });
     await p.waitForTimeout(100);
     ok(await p.isVisible('text=Frauenärztin'), 'Erinnerung erscheint auf „Heute“');

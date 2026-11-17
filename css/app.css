@@ -363,3 +363,13 @@ label.f { display: block; font-size: 14px; color: var(--muted); margin: 16px 0 6
 :root[data-theme="dark"] .tag.ok2 { background: #173322; color: #7fd496; }
 
 .btnrow .btn { font-size: 15px; padding: 14px 10px; white-space: nowrap; gap: 6px; }
+
+/* ===== Schwangerschaftschance ===== */
+.chance { display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px; border-radius: 999px; font-size: 13px; background: var(--surface-2); color: var(--muted); }
+.chance i { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+.chance b { font-weight: 650; }
+.ch-low { background: var(--surface-2); color: var(--muted); }
+.ch-medium { background: color-mix(in srgb, var(--fert-soft) 60%, var(--surface-2)); color: var(--fert); }
+.ch-high { background: var(--fert-soft); color: var(--fert); }
+.mk i.ch { width: 12px; height: 4px; border-radius: 2px; background: var(--fert); }
+.mk i.ch.m { opacity: .4; }
