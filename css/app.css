@@ -372,4 +372,6 @@ label.f { display: block; font-size: 14px; color: var(--muted); margin: 16px 0 6
 .card-h > * { min-width: 0; }
 .card-h h2 { overflow-wrap: anywhere; }
 .sheet-h .grow { min-width: 0; }
-.sheet-h .grow .xs { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sheet-h .ch-sub { font-size: 12px; font-weight: 600; margin-top: 1px; }
+.sheet-h .ch-sub.ch-high, .sheet-h .ch-sub.ch-medium { background: none; color: var(--fert); }
+.sheet-h .ch-sub.ch-low { background: none; color: var(--muted); }

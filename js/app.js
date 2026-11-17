@@ -620,7 +620,7 @@ function renderSheet(keep = false) {
   document.body.style.overflow = 'hidden';
   const d = state.sheetDay, m = model(), inf = C.dayInfo(m, state.db.days, d), e = state.db.days[d] || {}, s = S();
   const chs = chanceOn() ? C.chanceOf(m, state.db.days, d) : null;
-  const sub = [inf.cycleDay ? 'Tag ' + inf.cycleDay : '', inf.phase ? { mens: 'Periode', foll: 'Follikelphase', fert: 'Fruchtbar', lut: 'Lutealphase' }[inf.phase] : '', chs ? 'Chance ' + CH_LABEL[chs.level] : ''].filter(Boolean).join(' · ');
+  const sub = [inf.cycleDay ? 'Zyklustag ' + inf.cycleDay : '', inf.phase ? { mens: 'Periode', foll: 'Follikelphase', fert: 'Fruchtbar*', lut: 'Lutealphase' }[inf.phase] : ''].filter(Boolean).join(' · ');
   const symIn = g => cat(g) ? T.SYMPTOM_GROUPS[g] : [];
   const has = list => (e.symptoms || []).filter(x => list.includes(x));
   const join = a => a.slice(0, 3).join(', ') + (a.length > 3 ? ` +${a.length - 3}` : '');
@@ -654,9 +654,9 @@ function renderSheet(keep = false) {
   const canNext = d < m.t;
     el.innerHTML = `<div class="overlay" data-a="closeBg" ${keep ? 'style="animation:none"' : ''}><div class="sheet" role="dialog" aria-modal="true" aria-label="Eintrag ${fmtLong(d)}" ${keep ? 'style="animation:none"' : ''}>
     <div class="sheet-h"><div class="grab"></div>
-    <div class="row between"><div class="dnav"><button class="iconbtn" data-a="sheetNav" data-d="-1" aria-label="Vorheriger Tag">${icon('left')}</button><button class="iconbtn" data-a="sheetNav" data-d="1" aria-label="Nächster Tag" ${canNext ? '' : 'disabled style="opacity:.3"'}>${icon('right')}</button></div>
-    <div class="grow center"><div style="font:700 19px var(--font-round)">${d === m.t ? 'Heute' : fmt(d, { weekday: 'short', day: 'numeric', month: 'short' })}</div><div class="xs muted">${sub}</div></div>
-    <span style="width:86px"></span></div></div>
+    <div class="row between"><button class="iconbtn" data-a="sheetNav" data-d="-1" aria-label="Vorheriger Tag">${icon('left')}</button>
+    <div class="grow center"><div style="font:700 19px var(--font-round)">${d === m.t ? 'Heute' : fmt(d, { weekday: 'short', day: 'numeric', month: 'short' })}</div><div class="xs muted">${sub}</div>${chs ? `<div class="ch-sub ch-${chs.level}">Chance ${CH_LABEL[chs.level]}*</div>` : ''}</div>
+    <button class="iconbtn" data-a="sheetNav" data-d="1" aria-label="Nächster Tag" ${canNext ? '' : 'disabled style="opacity:.3"'}>${icon('right')}</button></div></div>
     ${body}
     <div class="sheet-foot"><button class="btn" data-a="close">${icon('check')}Fertig</button><p class="xs muted center" style="margin:8px 0 0">Alles wird sofort gespeichert.</p></div>
   </div></div>`;
