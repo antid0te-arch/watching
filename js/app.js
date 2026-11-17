@@ -2,9 +2,9 @@
 import * as C from './core.js';
 import * as T from './content.js';
 import * as St from './store.js';
-import { esc, fmt, fmtLong, fmtMonth, fmtShortMonth, tage, dec, icon, eye, ring, bars, curve, cycleRows, heatmap, confBars, CONF_LABEL, TYPE_LABEL } from './ui.js';
+import { esc, fmt, fmtLong, fmtMonth, fmtShortMonth, tage, dec, icon, eye, bars, curve, cycleRows, heatmap, confBars, CONF_LABEL, TYPE_LABEL, gauge, phaseCurve, areaLine, donut } from './ui.js';
 
-const VERSION = '2.0';
+const VERSION = '2.1';
 const $ = s => document.querySelector(s);
 const state = {
   db: null, session: null, prefs: St.loadPrefs(), ver: 0,
@@ -139,71 +139,79 @@ function quickLists() {
   const moods = [...new Set([...Object.keys(mcnt).sort((a, b) => mcnt[b] - mcnt[a]), 'Glücklich', 'Ruhig', 'Energiegeladen', 'Gereizt', 'Traurig', 'Gestresst', 'Sensibel'])].slice(0, 7);
   return { sym, moods };
 }
+function capsules(m) {
+  const t = m.t, days = state.db.days;
+  const start = m.cur && C.diff(m.cur.start, t) <= 14 ? m.cur.start : C.add(t, -7);
+  let out = '';
+  for (let d = start; d <= C.add(t, 5); d = C.add(d, 1)) {
+    const inf = C.dayInfo(m, days, d), e = days[d], isT = d === t, fut = d > t;
+    const lbl = isT ? 'Heute' : inf.cycleDay ? 'Tag ' + inf.cycleDay : C.parse(d).getDate() + '.';
+    const inner = inf.logged ? icon('drop') : (fut || C.hasData(e)) ? icon('check') : '';
+    out += `<button class="cap ${isT ? 'today' : ''} ${fut ? 'future' : ''} ${inf.logged && !isT ? 'mens' : ''}" data-a="day" data-v="${d}" ${isT ? 'id="cap-today"' : ''} aria-label="${fmtLong(d)}${inf.logged ? ', Periode' : ''}${C.hasData(e) ? ', mit Eintrag' : ''}">${lbl}<span class="o">${inner}</span></button>`;
+  }
+  return `<div class="caps" role="list" aria-label="Zyklustage">${out}</div>`;
+}
 function viewToday() {
   const m = model(), t = m.t, e = state.db.days[t] || {};
   const inf = C.dayInfo(m, state.db.days, t);
-  let big, sub, small = fmt(t, { weekday: 'long', day: 'numeric', month: 'long' });
-  if (!m.cur) { big = 'Hallo'; sub = 'Trag deine Periode ein'; }
-  else if (m.inPeriod) { big = 'Tag ' + m.periodDay; sub = 'deiner Periode'; }
-  else if (m.late > 0) { big = tage(m.late); sub = m.lateBeyondRange ? 'später als erwartet' : 'nach dem Termin – noch im Bereich'; }
-  else { const n = C.diff(t, m.next); big = n === 0 ? 'Heute' : tage(n); sub = n === 0 ? 'könnte deine Periode beginnen' : 'bis zur Periode'; }
-  const ph = m.inPeriod ? 'mens' : inf.phase;
-  const h = new Date().getHours();
-  const greet = h < 5 ? 'Gute Nacht' : h < 11 ? 'Guten Morgen' : h < 18 ? 'Hallo' : 'Guten Abend';
-
-  let action;
-  if (m.inPeriod) {
-    action = `<p class="small muted" style="margin:14px 0 8px">Blutung heute</p>
-      <div class="scale s4">${[['spotting', 'Schmier'], ['light', 'Leicht'], ['medium', 'Mittel'], ['heavy', 'Stark']].map(([v, l]) => `<button class="${e.flow === v ? 'on' : ''}" data-a="flowToday" data-v="${v}">${icon('drop')}${l}</button>`).join('')}</div>
-      <button class="btn sec mt" data-a="flowToday" data-v="none">${icon('check')}Heute keine Blutung mehr</button>`;
-  } else {
-    action = `<button class="btn mens mt" data-a="startPeriod">${icon('drop')}Periode hat heute begonnen</button>
-      <button class="link mt" data-a="editPeriods">Anderes Datum oder Periode korrigieren</button>`;
+  const ph = m.cur ? (m.inPeriod ? 'mens' : inf.phase) : null;
+  let big, sub;
+  if (!m.cur) { big = '–'; sub = 'Trag deine Periode ein'; }
+  else if (m.late > 0 && !m.inPeriod) { big = tage(m.late); sub = m.lateBeyondRange ? 'später als erwartet' : 'nach Termin – im Spielraum'; }
+  else { big = 'Tag ' + (m.inPeriod ? m.periodDay : m.cycleDay); sub = m.inPeriod ? 'Menstruation' : inf.phaseDetail === 'ov' ? 'Eisprung*' : ph === 'fert' ? 'Fruchtbares Fenster*' : T.PHASE[ph].name; }
+  const q = { mens: 'Gönn dir heute etwas Ruhe', foll: 'Bereit für einen guten Tag?', fert: 'Wie fühlst du dich heute?', lut: 'Sei heute lieb zu dir' }[ph] || 'Schön, dass du da bist';
+  const name = S().name;
+  let status = '';
+  if (m.cur) {
+    const n = C.diff(t, m.next);
+    const nextTxt = m.inPeriod ? `Nächste Periode ca. ${fmt(m.future[0] ? m.future[0].start : m.next)}` : m.late > 0 ? `Erwartet war der ${fmt(m.nominal)}` : n === 0 ? 'Periode könnte heute beginnen' : `Periode in ${n === 1 ? '1 Tag' : n + ' Tagen'} · ${fmt(m.nextRange[0])}–${fmt(m.nextRange[1])}`;
+    const fs = m.segs.find(x => (x.current || x.predicted) && C.add(x.ov, 1) >= t);
+    status = `<div class="status"><b>${nextTxt}</b><div class="row" style="justify-content:center;gap:12px;margin-top:6px"><span class="conf">${confBars(m.confidence)} ${CONF_LABEL[m.confidence]}</span>${fs ? `<span class="xs muted">Eisprung ca. ${fmt(fs.ov)}*</span>` : ''}</div></div>`;
   }
+  const legend = `<div class="dots"><span><i style="background:var(--mens)"></i>Menstruation</span><span><i style="background:var(--foll)"></i>Follikelphase</span><span><i style="background:var(--fert)"></i>Fruchtbar*</span><span><i style="background:var(--lut)"></i>Lutealphase</span></div>`;
 
-  const facts = m.cur ? `<div class="facts">
-      <div><b>${m.cycleDay}</b><span>Zyklustag</span></div>
-      <div><b>${m.late > 0 ? '–' : fmt(m.next)}</b><span>Nächste Periode</span></div>
-      <div><b>${(() => { const s = m.segs.find(x => (x.current || x.predicted) && C.add(x.ov, 1) >= t); return s ? fmt(s.ov) : '–'; })()}</b><span>Eisprung ca.</span></div></div>` : '';
-  const range = m.cur && !m.inPeriod ? `<div class="mt small"><span class="conf">${confBars(m.confidence)} ${CONF_LABEL[m.confidence]}</span><div class="muted xs" style="margin-top:4px">Wahrscheinlich ${fmt(m.nextRange[0])} – ${fmt(m.nextRange[1])}</div></div>` : '';
+  const period = m.inPeriod
+    ? `<div class="card"><div class="card-h"><h2>Blutung heute</h2>${e.flow ? `<span class="small muted">${T.FLOW_LABEL[e.flow]}</span>` : ''}</div>
+       <div class="chips">${[['spotting', 'Schmier'], ['light', 'Leicht'], ['medium', 'Mittel'], ['heavy', 'Stark']].map(([v, l]) => `<button class="chip mens ${e.flow === v ? 'on' : ''}" data-a="flowToday" data-v="${v}"><span class="em">${T.EMOJI[v]}</span>${l}</button>`).join('')}</div>
+       <button class="btn sec mt" data-a="flowToday" data-v="none">${icon('check')}Heute keine Blutung mehr</button></div>`
+    : `<div class="btnrow mt"><button class="btn mens" data-a="startPeriod">${icon('drop')}Periode da</button><button class="btn sec" data-a="editPeriods">${icon('edit')}Korrigieren</button></div>`;
+
+  const rec = ph ? T.RECS[ph] : null;
+  const recs = rec ? `<div class="card-h" style="margin:22px 4px 12px"><h2>Empfehlung für heute</h2><button class="link" data-a="go" data-v="more/library">Wissen</button></div>
+    <div class="recs"><div class="rec"><h4><span class="em">🥗</span>Ernährung</h4><p>${rec.food}</p></div><div class="rec"><h4><span class="em">🧘‍♀️</span>Bewegung</h4><p>${rec.move}</p></div></div>
+    <p class="xs muted" style="margin:8px 4px 0">Allgemeine Tipps zur ${T.PHASE[ph].name} – kein medizinischer Rat.</p>` : '';
 
   const { sym, moods } = quickLists();
-  const quick = `<div class="card">
-    <div class="card-h"><h2>Wie geht's dir heute?</h2><button class="link" data-a="day" data-v="${t}">Alles eintragen</button></div>
-    ${cat('mood') ? `<div class="chips scroll" role="group" aria-label="Stimmung">${moods.map(s => `<button class="chip ${(e.moods || []).includes(s) ? 'on' : ''}" data-a="quick" data-f="moods" data-v="${esc(s)}">${esc(s)}</button>`).join('')}</div>` : ''}
-    ${sym.length ? `<div class="chips scroll mt" role="group" aria-label="Symptome">${sym.map(s => `<button class="chip ${(e.symptoms || []).includes(s) ? 'on' : ''}" data-a="quick" data-f="symptoms" data-v="${esc(s)}">${esc(s)}</button>`).join('')}</div>` : ''}
-    ${cat('energy') ? `<p class="small muted" style="margin:14px 0 8px">Energie</p><div class="scale s5">${T.ENERGY.map((l, i) => `<button class="${e.energy === i + 1 ? 'on' : ''}" data-a="quickScale" data-f="energy" data-v="${i + 1}"><b>${i + 1}</b>${l}</button>`).join('')}</div>` : ''}
+  const em = s => T.EMOJI[s] ? `<span class="em">${T.EMOJI[s]}</span>` : '';
+  const quick = `<div class="card mt2">
+    <div class="card-h"><h2>Wie fühlst du dich?</h2><button class="link" data-a="day" data-v="${t}">Alles</button></div>
+    ${cat('mood') ? `<div class="chips" role="group" aria-label="Stimmung">${moods.slice(0, 6).map(s => `<button class="chip ${(e.moods || []).includes(s) ? 'on' : ''}" data-a="quick" data-f="moods" data-v="${esc(s)}">${em(s)}${esc(s)}</button>`).join('')}</div>` : ''}
+    ${sym.length ? `<p class="small muted" style="margin:16px 0 8px">Körper</p><div class="chips" role="group" aria-label="Symptome">${sym.slice(0, 6).map(s => `<button class="chip ${(e.symptoms || []).includes(s) ? 'on' : ''}" data-a="quick" data-f="symptoms" data-v="${esc(s)}">${em(s)}${esc(s)}</button>`).join('')}</div>` : ''}
+    ${cat('energy') ? `<p class="small muted" style="margin:16px 0 10px">Energie</p><div class="scale s5">${T.ENERGY.map((l, i) => `<button class="${e.energy === i + 1 ? 'on' : ''}" data-a="quickScale" data-f="energy" data-v="${i + 1}"><b>${i + 1}</b>${l}</button>`).join('')}</div>` : ''}
   </div>`;
 
   const ups = C.upcoming(state.db, m);
   const reminders = ups.length ? `<div class="card"><div class="card-h"><h2>Erinnerungen</h2><button class="link" data-a="go" data-v="more/reminders">Verwalten</button></div>
     ${ups.map(u => `<div class="reminder"><span class="ic">${icon(u.icon)}</span><div class="grow"><div>${esc(u.text)}</div>${u.sub ? `<div class="xs muted">${esc(u.sub)}</div>` : ''}</div>
     ${u.action ? `<button class="btn sm ghost" data-a="${u.action}" data-v="${esc(u.value || '')}">Erledigt</button>` : ''}</div>`).join('')}</div>` : '';
-
   const ins = C.insights(state.db, m).filter(i => i.id !== 'pred').slice(0, 3);
-  const insights = ins.length ? `<div class="card"><div class="card-h"><h2>Für dich</h2><button class="link" data-a="go" data-v="stats">Analyse</button></div>
-    ${ins.map(insHtml).join('')}</div>` : '';
-
-  const tips = ph ? T.PHASE_TIPS[ph] : null;
-  const tip = tips ? tips[(m.cycleDay || 0) % tips.length] : '';
-  const week = []; for (let i = -3; i <= 3; i++) { const d = C.add(t, i); week.push(`<div><div class="wd">${C.parse(d).toLocaleDateString('de-DE', { weekday: 'short' }).replace('.', '')}</div>${dayCell(m, d)}</div>`); }
+  const insights = ins.length ? `<div class="card"><div class="card-h"><h2>Für dich</h2><button class="link" data-a="go" data-v="stats">Analyse</button></div>${ins.map(insHtml).join('')}</div>` : '';
   const ios = /iPhone|iPad|iPod/.test(navigator.userAgent);
   const standalone = navigator.standalone || matchMedia('(display-mode: standalone)').matches;
 
   return `<div class="view">
-  <div class="top"><div class="brand">${eye()}Lukas is watching you</div><button class="iconbtn" data-a="go" data-v="journal" aria-label="Tagebuch">${icon('note')}</button></div>
-  <h1 style="margin-top:10px">${greet}${S().name ? ', ' + esc(S().name) : ''}</h1>
-  ${ios && !standalone ? `<div class="card tint"><h2>${icon('down', 'sr')}Als App installieren</h2><p class="small mb0">Tippe in Safari auf <b>Teilen</b> und dann auf <b>Zum Home-Bildschirm</b>. Erst dann bleiben deine Daten dauerhaft gespeichert und die App läuft offline.</p></div>` : ''}
+  <div class="hello"><div class="grow"><div class="hi">Hallo${name ? ', ' + esc(name) : ''} 👋</div><h1>${q}</h1></div>
+    <button class="avatar" data-a="go" data-v="more" aria-label="Mehr">${name ? esc(name.trim()[0].toUpperCase()) : `<span style="width:30px;height:30px">${eye()}</span>`}</button></div>
+  ${capsules(m)}
+  ${ios && !standalone ? `<div class="card tint"><h2>Als App installieren</h2><p class="small mb0">Tippe in Safari auf <b>Teilen</b> → <b>Zum Home-Bildschirm</b>. Erst dann bleiben deine Daten dauerhaft gespeichert.</p></div>` : ''}
   <div class="card hero">
-    <div class="ringwrap">${ring(m)}
-      <div class="ringcenter"><div class="xs muted">${small}</div><div class="big" style="margin-top:4px">${big}</div><div class="muted small">${sub}</div>${phasePill(ph, inf.phaseDetail)}</div>
-    </div>
-    ${range}${facts}${action}
+    <div class="gauge">${gauge(m)}<div class="gauge-c"><div class="big">${big}</div><div class="ph" style="color:var(--sel)">${sub}</div></div></div>
+    ${legend}${status}
   </div>
-  ${quick}${reminders}${insights}
-  ${ph ? `<div class="card"><div class="card-h"><h2>${T.PHASE[ph].long}</h2><button class="link" data-a="go" data-v="more/article/zyklus">Mehr</button></div><p class="muted mb0">${tip}</p><p class="xs muted mt mb0">${icon('info', 'sr')}Allgemeines Wissen – jeder Körper ist anders.</p></div>` : ''}
-  <div class="card"><div class="card-h"><h2>Diese Woche</h2><button class="link" data-a="go" data-v="cal">Kalender</button></div><div class="week">${week.join('')}</div></div>
-  <p class="xs muted center" style="margin:18px 8px 0">Alle Vorhersagen sind Schätzungen aus deinen Daten – kein Verhütungsmittel und keine Diagnose.</p>
+  <button class="btn" data-a="day" data-v="${t}">${icon('plus')}Symptome eintragen</button>
+  ${period}
+  ${recs}${quick}${reminders}${insights}
+  <p class="xs muted center" style="margin:18px 8px 0">* Vorhersagen sind Schätzungen aus deinen Daten – kein Verhütungsmittel und keine Diagnose.</p>
   </div>`;
 }
 function insHtml(i) { return `<div class="ins"><span class="badge b-${i.type}">${TYPE_LABEL[i.type]}</span><h4>${esc(i.title)}</h4><p>${esc(i.text)}</p></div>`; }
@@ -287,14 +295,15 @@ function viewStats() {
   if (!m.ps.length) return `<div class="view"><h1>Analyse</h1><div class="card">${emptyState('chart', 'Sobald du deine Periode einträgst, erscheinen hier Statistiken, Muster und Erkenntnisse.')}</div></div>`;
   const cyc = A.cycles;
   const regTxt = { regular: 'Regelmäßig', irregular: 'Schwankend', unknown: 'Zu wenig Daten' }[m.regularity];
+  const inN = l => l >= 21 && l <= 35;
+  const cycTag = !m.nUsed ? '<span class="tag warn">Startwert</span>' : inN(m.avgCycle) ? '<span class="tag ok2">Im Normbereich</span>' : '<span class="tag warn">Außerhalb</span>';
+  const perTag = !m.periodStats.n ? '<span class="tag warn">Startwert</span>' : m.avgPeriod >= 2 && m.avgPeriod <= 7 ? '<span class="tag ok2">Im Normbereich</span>' : '<span class="tag warn">Außerhalb</span>';
   const tiles = `<div class="tiles">
-    <div class="tile"><div class="small muted">Ø Zykluslänge</div><div class="v">${m.avgCycle} <small>Tage</small></div><div class="xs muted">${m.nUsed ? `± ${dec(m.sd)} · aus ${m.nUsed} Zyklen` : 'Startwert'}</div></div>
-    <div class="tile"><div class="small muted">Ø Periode</div><div class="v">${m.avgPeriod} <small>Tage</small></div><div class="xs muted">${m.periodStats.n ? `aus ${m.periodStats.n} Perioden` : 'Startwert'}</div></div>
     <div class="tile"><div class="small muted">Regelmäßigkeit</div><div class="v" style="font-size:20px;margin-top:6px">${regTxt}</div><div class="xs muted">${m.range != null && m.nUsed >= 2 ? `Spanne ${tage(m.range)}` : 'ab 3 Zyklen'}</div></div>
     <div class="tile"><div class="small muted">Vorhersage-Treffer</div><div class="v">${m.mae != null ? '± ' + dec(m.mae) : '–'} <small>${m.mae != null ? 'Tage' : ''}</small></div><div class="xs muted">${m.mae != null ? 'Ø Abweichung' : 'ab 3 Zyklen'}</div></div>
   </div>`;
   const ins = C.insights(state.db, m);
-  const cycBars = cyc.map(c => ({ label: fmtShortMonth(c.start), value: c.len, color: c.outlier ? 'var(--muted)' : c.len < 21 || c.len > 35 ? 'var(--lut)' : 'var(--accent)', tip: `${fmt(c.start, { day: 'numeric', month: 'long', year: 'numeric' })}: ${tage(c.len)}, Periode ${tage(c.plen)}${c.outlier ? ' – als Ausreißer nicht mitgerechnet' : ''}` }));
+  const cycBars = cyc.map(c => ({ label: fmtShortMonth(c.start), value: c.len, color: c.outlier ? 'var(--muted)' : c.len < 21 || c.len > 35 ? 'var(--lut)' : 'var(--sel)', tip: `${fmt(c.start, { day: 'numeric', month: 'long', year: 'numeric' })}: ${tage(c.len)}, Periode ${tage(c.plen)}${c.outlier ? ' – als Ausreißer nicht mitgerechnet' : ''}` }));
   const perBars = cyc.map(c => ({ label: fmtShortMonth(c.start), value: c.plen, color: 'var(--mens)', tip: `${fmt(c.start, { day: 'numeric', month: 'long' })}: ${tage(c.plen)} Blutung` }));
   const metrics = [['energy', 'Energie', 1, 5], ['pain', 'Schmerz', 0, 3], ['stress', 'Stress', 1, 5], ['sleep', 'Schlaf h', null, null], ['sleepQ', 'Schlafqualität', 1, 5], ['temp', 'Temperatur', null, null]].filter(([k]) => ({ energy: 'energy', stress: 'energy', pain: 'pain', sleep: 'sleep', sleepQ: 'sleep', temp: 'temp' })[k] && cat({ energy: 'energy', stress: 'energy', pain: 'pain', sleep: 'sleep', sleepQ: 'sleep', temp: 'temp' }[k]));
   if (!metrics.find(x => x[0] === state.metric) && metrics.length) state.metric = metrics[0][0];
@@ -306,9 +315,10 @@ function viewStats() {
     const lo = mt[2] ?? (vals.length ? Math.floor((Math.min(...vals) - 0.1) * 10) / 10 : 0), hi = mt[3] ?? (vals.length ? Math.ceil((Math.max(...vals) + 0.1) * 10) / 10 : 1);
     const xMax = Math.max(m.avgCycle, ...pts.map(p => p[0]), 2);
     const pa = A.phaseAvg[mt[0]];
-    curveHtml = pts.length >= 2 ? curve(pts, { xMax, yMin: lo, yMax: hi, m, id: 'curve', fmtY: v => dec(v, mt[0] === 'temp' ? 2 : 1), label: mt[1] + ' nach Zyklustag' })
-      + `<div class="facts" style="grid-template-columns:repeat(4,1fr)">${C.PHASES.map(p => `<div><b>${pa[p] == null ? '–' : dec(pa[p], mt[0] === 'temp' ? 2 : 1)}</b><span>${{ mens: 'Periode', foll: 'Follikel', fert: 'Fruchtbar', lut: 'Luteal' }[p]}</span></div>`).join('')}</div>`
-      : emptyState('chart', `Trag „${mt[1]}“ an ein paar Tagen ein – dann siehst du hier deinen Verlauf über den Zyklus.`);
+    const phaseVals = C.PHASES.filter(p => pa[p] != null).length;
+    const pLo = mt[2] ?? Math.floor(Math.min(...C.PHASES.map(p => pa[p] ?? Infinity)) - 0.3), pHi = mt[3] ?? Math.ceil(Math.max(...C.PHASES.map(p => pa[p] ?? -Infinity)) + 0.3);
+    curveHtml = (phaseVals >= 2 ? `<h3 style="margin-top:4px">Ø nach Phase</h3>` + phaseCurve(pa, { yMin: pLo, yMax: pHi, id: 'phc', fmtY: v => dec(v, mt[0] === 'temp' ? 2 : 1), label: mt[1] + ' nach Phase' }) : '') + (pts.length >= 2 ? `<h3>Nach Zyklustag</h3>` : '') + (pts.length >= 2 ? curve(pts, { xMax, yMin: lo, yMax: hi, m, id: 'curve', fmtY: v => dec(v, mt[0] === 'temp' ? 2 : 1), label: mt[1] + ' nach Zyklustag' })
+      : phaseVals >= 2 ? '' : emptyState('chart', `Trag „${mt[1]}“ an ein paar Tagen ein – dann siehst du hier deinen Verlauf über den Zyklus.`));
   }
   const symTop = A.symptoms.slice(0, 8), maxS = symTop.length ? symTop[0].total : 1;
   const heatList = [...A.symptoms.slice(0, 6), ...A.moods.slice(0, 4)];
@@ -316,9 +326,11 @@ function viewStats() {
   return `<div class="view">
   <h1>Analyse</h1>${seg}<div style="height:14px"></div>${tiles}
   <div class="card"><h2>Erkenntnisse</h2>${ins.map(insHtml).join('')}<p class="xs muted mt mb0"><span class="b-personal badge">Aus deinen Daten</span> beobachtete Muster · <span class="b-estimate badge">Schätzung</span> statistisch · <span class="b-education badge">Wissen</span> allgemein. Keine Diagnosen.</p></div>
-  <div class="card"><h2>Zykluslängen</h2>${cyc.length ? bars(cycBars, { avg: m.avgCycle, band: [21, 35], id: 'cyc', unit: ' Tage' }) + '<p class="xs muted mb0">Grüner Bereich: 21–35 Tage (typisch bei Erwachsenen). Gestrichelt: dein Durchschnitt. Grau: Ausreißer.</p>' : emptyState('cycle', 'Sobald zwei Perioden im Zeitraum liegen, siehst du hier deine Zykluslängen.')}</div>
+  <div class="card"><div class="donut-row">${donut(m.cur ? Math.min(1, m.cycleDay / m.avgCycle) : 0)}<div><div class="lbl">Zykluslänge</div><div class="val">${tage(m.avgCycle)}</div><div class="xs muted">${m.nUsed ? `± ${dec(m.sd)} · ${m.nUsed} Zyklen` : 'noch keine vollständigen Zyklen'}</div></div><div class="norm">Normal<b>21–35</b>${cycTag}</div></div>
+    <h2 class="mt2">Bisherige Zyklen</h2>${cyc.length ? areaLine(cycBars, { band: [21, 35], avg: m.avgCycle, id: 'cyc', unit: ' Tage' }) + '<p class="xs muted mb0">Rosa Band: 21–35 Tage (typisch bei Erwachsenen). Gestrichelt: dein Durchschnitt.</p>' : emptyState('cycle', 'Sobald zwei Perioden im Zeitraum liegen, siehst du hier deine Zykluslängen.')}</div>
+  <div class="card"><div class="donut-row">${donut(Math.min(1, m.avgPeriod / 7), 'var(--mens)')}<div><div class="lbl">Periodendauer</div><div class="val">${tage(m.avgPeriod)}</div><div class="xs muted">${m.periodStats.n ? `aus ${m.periodStats.n} Perioden` : 'Startwert'}</div></div><div class="norm">Normal<b>2–7</b>${perTag}</div></div>
+    ${cyc.length ? `<h2 class="mt2">Bisherige Perioden</h2>${areaLine(perBars, { avg: m.avgPeriod, id: 'per', unit: ' Tage', height: 140 })}` : ''}</div>
   ${cyc.length ? `<div class="card"><h2>Zyklen im Vergleich</h2>${cycleRows([...cyc].reverse().slice(0, 12), m.luteal, m.avgCycle)}<div class="legend"><span><i class="lg" style="background:var(--mens)"></i>Periode</span><span><i class="lg" style="background:var(--fert-soft)"></i>Fruchtbar (gesch.)</span><span><i class="lg" style="background:var(--fert)"></i>Eisprung (gesch.)</span></div></div>` : ''}
-  ${cyc.length ? `<div class="card"><h2>Periodendauer</h2>${bars(perBars, { avg: m.avgPeriod, id: 'per', unit: ' Tage', height: 140 })}</div>` : ''}
   ${metrics.length ? `<div class="card"><h2>Körper im Zyklusverlauf</h2><div class="chips scroll" style="margin-bottom:12px">${metrics.map(([k, l]) => `<button class="chip ${state.metric === k ? 'on' : ''}" data-a="metric" data-v="${k}">${l}</button>`).join('')}</div>${curveHtml}</div>` : ''}
   <div class="card"><h2>Häufigste Symptome</h2>${symTop.length ? symTop.map(s => `<div style="margin-bottom:12px"><div class="row between small"><span>${esc(s.name)}</span><span class="muted">${s.total}×</span></div><div class="hbar" style="margin-top:6px"><i style="width:${Math.max(4, s.total / maxS * 100)}%"></i></div></div>`).join('') : emptyState('heart', 'Noch keine Symptome im gewählten Zeitraum.')}</div>
   <div class="card"><h2>Vor der Periode</h2>${A.pms.list.length ? `<p class="small muted">Symptome und Stimmungen, die du in den 5 Tagen vor der Periode deutlich häufiger einträgst als sonst:</p>${A.pms.list.slice(0, 6).map(x => `<div class="kv"><span>${esc(x.name)}</span><b class="small">${x.cycles} von ${x.of} Zyklen</b></div>`).join('')}` : `<p class="small muted mb0">${A.pms.cyclesWithData < 2 ? 'Dafür braucht es Einträge vor mindestens zwei Perioden.' : 'Kein deutliches Muster vor der Periode erkennbar.'}</p>`}</div>
@@ -593,60 +605,61 @@ function chipGroup(field, options, val, multi, cls = '') {
   return `<div class="chips">${options.map(o => {
     const [v, l] = Array.isArray(o) ? o : [o, o];
     const on = multi ? (val || []).includes(v) : val === v;
-    return `<button class="chip ${cls} ${on ? 'on' : ''}" data-a="chip" data-f="${field}" data-v="${esc(v)}" data-m="${multi ? 1 : 0}" aria-pressed="${on}">${esc(l)}</button>`;
+    const em = T.EMOJI[v] ? `<span class="em" aria-hidden="true">${T.EMOJI[v]}</span>` : '';
+    return `<button class="chip ${cls} ${on ? 'on' : ''}" data-a="chip" data-f="${field}" data-v="${esc(v)}" data-m="${multi ? 1 : 0}" aria-pressed="${on}">${em}${esc(l)}</button>`;
   }).join('')}</div>`;
 }
 function scaleGroup(field, labels, val, start = 1) {
-  return `<div class="scale s${labels.length}">${labels.map((l, i) => `<button class="${val === i + start ? 'on' : ''}" data-a="scale" data-f="${field}" data-v="${i + start}" aria-pressed="${val === i + start}"><b>${i + start}</b>${l}</button>`).join('')}</div>`;
+  return `<div class="scale s${labels.length}">${labels.map((l, i) => `<button class="${val === i + start ? 'on' : ''}" data-a="scale" data-f="${field}" data-v="${i + start}" aria-pressed="${val === i + start}" aria-label="${l}"><b>${i + start}</b>${l}</button>`).join('')}</div>`;
 }
 const num = v => v == null ? '' : String(v).replace('.', ',');
-function renderSheet() {
+function renderSheet(keep = false) {
   const el = $('#sheet');
   if (!state.sheetDay || !state.db) { el.innerHTML = ''; document.body.style.overflow = ''; return; }
+  const prevScroll = keep && el.querySelector('.sheet') ? el.querySelector('.sheet').scrollTop : 0;
   document.body.style.overflow = 'hidden';
   const d = state.sheetDay, m = model(), inf = C.dayInfo(m, state.db.days, d), e = state.db.days[d] || {}, s = S();
   const sub = [inf.cycleDay ? 'Zyklustag ' + inf.cycleDay : '', inf.phase ? T.PHASE[inf.phase].name : ''].filter(Boolean).join(' · ');
   const symIn = g => cat(g) ? T.SYMPTOM_GROUPS[g] : [];
-  const sec = (title, body) => `<div class="sech">${title}</div>${body}`;
+  const has = list => (e.symptoms || []).filter(x => list.includes(x));
+  const join = a => a.slice(0, 3).join(', ') + (a.length > 3 ? ` +${a.length - 3}` : '');
+  const sect = (key, title, value, body) => `<section class="sect ${value ? 'done' : ''}"><div class="sect-h"><span class="em" aria-hidden="true">${T.SECTION_EMOJI[key]}</span><div class="grow"><b>${title}</b><div class="v">${esc(value || '')}</div></div><span class="ok" aria-label="${value ? 'ausgefüllt' : 'leer'}">${icon('check')}</span></div>${body}</section>`;
   let body = '';
-  body += sec('Periode', chipGroup('flow', [...T.FLOW, ['none', 'Keine']], e.flow, false, 'mens'));
-  if (cat('pain')) body += sec('Schmerzen', scaleGroup('pain', T.PAIN, e.pain, 0) + '<div style="height:10px"></div>' + chipGroup('symptoms', symIn('pain'), e.symptoms, true));
-  if (cat('mood')) body += sec('Stimmung', chipGroup('moods', T.MOODS, e.moods, true));
-  if (cat('energy')) body += sec('Energie', scaleGroup('energy', T.ENERGY, e.energy)) + sec('Stress', scaleGroup('stress', T.STRESS, e.stress));
-  if (cat('body')) body += sec('Körper', chipGroup('symptoms', symIn('body'), e.symptoms, true));
-  if (cat('sleep')) body += sec('Schlaf', `<div class="meas"><div><label for="in-sleep">Stunden</label><input id="in-sleep" type="text" inputmode="decimal" data-num="sleep" value="${num(e.sleep)}" placeholder="7,5"></div></div><div style="height:10px"></div>${scaleGroup('sleepQ', T.SLEEPQ, e.sleepQ)}<div style="height:10px"></div>${chipGroup('symptoms', symIn('sleep'), e.symptoms, true)}`);
-  if (cat('digestion')) body += sec('Verdauung & Appetit', chipGroup('symptoms', symIn('digestion'), e.symptoms, true) + '<p class="xs muted" style="margin:12px 0 6px">Appetit</p>' + chipGroup('appetite', T.APPETITE, e.appetite, false) + '<p class="xs muted" style="margin:12px 0 6px">Lust auf …</p>' + chipGroup('cravings', T.CRAVINGS, e.cravings, true));
-  if (cat('skin')) body += sec('Haut & Haare', chipGroup('symptoms', symIn('skin'), e.symptoms, true));
-  if (s.customSymptoms.length) body += sec('Eigene Symptome', chipGroup('symptoms', s.customSymptoms, e.symptoms, true));
-  if (cat('activity')) body += sec('Bewegung', chipGroup('activity', T.ACTIVITY, e.activity, true));
-  if (cat('mucus')) body += sec('Zervixschleim / Ausfluss', chipGroup('discharge', T.DISCHARGE, e.discharge, false, 'fert'));
-  if (cat('sex')) body += sec('Sex & Lust', chipGroup('sex', T.SEX, e.sex, false) + '<div style="height:8px"></div>' + chipGroup('libido', T.LIBIDO, e.libido, false));
+  body += sect('flow', 'Periode', e.flow ? T.FLOW_LABEL[e.flow] : '', chipGroup('flow', [...T.FLOW, ['none', 'Keine']], e.flow, false, 'mens'));
+  if (cat('pain')) { const v = [typeof e.pain === 'number' ? 'Schmerz: ' + T.PAIN[e.pain] : '', join(has(symIn('pain')))].filter(Boolean).join(' · '); body += sect('pain', 'Schmerzen', v, scaleGroup('pain', T.PAIN, e.pain, 0) + '<div style="height:14px"></div>' + chipGroup('symptoms', symIn('pain'), e.symptoms, true)); }
+  if (cat('mood')) body += sect('mood', 'Stimmung', join(e.moods || []), chipGroup('moods', T.MOODS, e.moods, true));
+  if (cat('energy')) {
+    body += sect('energy', 'Energie', e.energy ? T.ENERGY[e.energy - 1] : '', scaleGroup('energy', T.ENERGY, e.energy));
+    body += sect('stress', 'Stress', e.stress ? T.STRESS[e.stress - 1] : '', scaleGroup('stress', T.STRESS, e.stress));
+  }
+  if (cat('sleep')) { const v = [typeof e.sleep === 'number' ? dec(e.sleep, e.sleep % 1 ? 1 : 0) + ' h' : '', e.sleepQ ? T.SLEEPQ[e.sleepQ - 1] : '', join(has(symIn('sleep')))].filter(Boolean).join(' · '); body += sect('sleep', 'Schlaf', v, `${scaleGroup('sleepQ', T.SLEEPQ, e.sleepQ)}<div class="row mt"><label for="in-sleep" class="small muted" style="flex:none">Stunden</label><input id="in-sleep" type="text" inputmode="decimal" data-num="sleep" value="${num(e.sleep)}" placeholder="7,5" style="max-width:120px"></div><div style="height:12px"></div>${chipGroup('symptoms', symIn('sleep'), e.symptoms, true)}`); }
+  if (cat('body')) body += sect('body', 'Körper', join(has(symIn('body'))), chipGroup('symptoms', symIn('body'), e.symptoms, true));
+  if (cat('digestion')) { const v = [join(has(symIn('digestion'))), e.appetite ? 'Appetit: ' + e.appetite : '', (e.cravings || []).length ? 'Lust auf ' + join(e.cravings) : ''].filter(Boolean).join(' · '); body += sect('digestion', 'Verdauung & Appetit', v, chipGroup('symptoms', symIn('digestion'), e.symptoms, true) + '<p class="xs muted" style="margin:14px 0 8px">Appetit</p>' + chipGroup('appetite', T.APPETITE, e.appetite, false) + '<p class="xs muted" style="margin:14px 0 8px">Lust auf …</p>' + chipGroup('cravings', T.CRAVINGS, e.cravings, true)); }
+  if (cat('skin')) body += sect('skin', 'Haut & Haare', join(has(symIn('skin'))), chipGroup('symptoms', symIn('skin'), e.symptoms, true));
+  if (s.customSymptoms.length) body += sect('custom', 'Eigene Symptome', join(has(s.customSymptoms)), chipGroup('symptoms', s.customSymptoms, e.symptoms, true));
+  if (cat('activity')) body += sect('activity', 'Bewegung', join(e.activity || []), chipGroup('activity', T.ACTIVITY, e.activity, true));
+  if (cat('mucus')) body += sect('mucus', 'Zervixschleim / Ausfluss', e.discharge || '', chipGroup('discharge', T.DISCHARGE, e.discharge, false, 'fert'));
+  if (cat('sex')) body += sect('sex', 'Sex & Lust', [e.sex, e.libido].filter(Boolean).join(' · '), chipGroup('sex', T.SEX, e.sex, false) + '<div style="height:8px"></div>' + chipGroup('libido', T.LIBIDO, e.libido, false));
   if (cat('meds') && (s.pill || s.meds.length || e.pill || (e.meds || []).length)) {
     const medNames = [...new Set([...s.meds.map(x => x.name), ...(e.meds || [])])];
-    body += sec('Medikamente', `${s.pill || e.pill ? `<div class="swrow"><span>Pille genommen</span><label class="switch"><input type="checkbox" data-a="pillDay" ${e.pill ? 'checked' : ''} aria-label="Pille genommen"><span></span></label></div>` : ''}${medNames.length ? '<div style="height:8px"></div>' + chipGroup('meds', medNames, e.meds, true) : ''}`);
+    body += sect('meds', 'Medikamente', [e.pill ? 'Pille ✓' : '', join(e.meds || [])].filter(Boolean).join(' · '), `${s.pill || e.pill ? `<div class="swrow"><span>Pille genommen</span><label class="switch"><input type="checkbox" data-a="pillDay" ${e.pill ? 'checked' : ''} aria-label="Pille genommen"><span></span></label></div>` : ''}${medNames.length ? '<div style="height:10px"></div>' + chipGroup('meds', medNames, e.meds, true) : ''}`);
   }
   const meas = [];
   if (cat('temp')) meas.push(`<div><label for="in-temp">Basaltemp. °C</label><input id="in-temp" type="text" inputmode="decimal" data-num="temp" value="${num(e.temp)}" placeholder="36,50"></div>`);
   if (cat('weight')) meas.push(`<div><label for="in-weight">Gewicht kg</label><input id="in-weight" type="text" inputmode="decimal" data-num="weight" value="${num(e.weight)}" placeholder="–"></div>`);
-  if (meas.length) body += sec('Messwerte', `<div class="meas">${meas.join('')}</div>`);
-  if (cat('notes')) body += sec('Notiz', `<textarea data-note placeholder="Wie war dein Tag? Was ist dir aufgefallen?" aria-label="Notiz">${esc(e.note)}</textarea>`);
+  if (meas.length) body += sect('meas', 'Messwerte', [typeof e.temp === 'number' ? dec(e.temp, 2) + ' °C' : '', typeof e.weight === 'number' ? dec(e.weight) + ' kg' : ''].filter(Boolean).join(' · '), `<div class="meas">${meas.join('')}</div>`);
+  if (cat('notes')) body += sect('notes', 'Notiz', e.note ? 'Gespeichert' : '', `<textarea data-note placeholder="Wie war dein Tag? Was ist dir aufgefallen?" aria-label="Notiz">${esc(e.note)}</textarea>`);
   if (C.hasData(e)) body += `<button class="btn danger mt2" data-a="clearDay">${icon('trash')}Eintrag löschen</button>`;
   const canNext = d < m.t;
-  el.innerHTML = `<div class="overlay" data-a="closeBg"><div class="sheet" role="dialog" aria-modal="true" aria-label="Eintrag ${fmtLong(d)}">
+    el.innerHTML = `<div class="overlay" data-a="closeBg" ${keep ? 'style="animation:none"' : ''}><div class="sheet" role="dialog" aria-modal="true" aria-label="Eintrag ${fmtLong(d)}" ${keep ? 'style="animation:none"' : ''}>
     <div class="sheet-h"><div class="grab"></div>
     <div class="row between"><div class="dnav"><button class="iconbtn" data-a="sheetNav" data-d="-1" aria-label="Vorheriger Tag">${icon('left')}</button><button class="iconbtn" data-a="sheetNav" data-d="1" aria-label="Nächster Tag" ${canNext ? '' : 'disabled style="opacity:.3"'}>${icon('right')}</button></div>
-    <div class="grow center"><div style="font-size:18px;font-weight:700;letter-spacing:-.01em">${d === m.t ? 'Heute' : fmt(d, { weekday: 'short', day: 'numeric', month: 'short' })}</div><div class="xs muted">${sub}</div></div>
-    <button class="btn sm" data-a="close">Fertig</button></div></div>
+    <div class="grow center"><div style="font:700 19px var(--font-round)">${d === m.t ? 'Heute' : fmt(d, { weekday: 'short', day: 'numeric', month: 'short' })}</div><div class="xs muted">${sub}</div></div>
+    <span style="width:86px"></span></div></div>
     ${body}
+    <div class="sheet-foot"><button class="btn" data-a="close">${icon('check')}Fertig</button><p class="xs muted center" style="margin:8px 0 0">Alles wird sofort gespeichert.</p></div>
   </div></div>`;
-}
-function refreshSheetChips(field) {
-  const e = state.db.days[state.sheetDay] || {};
-  document.querySelectorAll(`#sheet [data-f="${field}"]`).forEach(b => {
-    const v = b.dataset.v, multi = b.dataset.m === '1';
-    const on = b.dataset.a === 'scale' ? e[field] === Number(v) : multi ? (e[field] || []).includes(v) : e[field] === v;
-    b.classList.toggle('on', on); b.setAttribute('aria-pressed', on);
-  });
+  if (keep) el.querySelector('.sheet').scrollTop = prevScroll;
 }
 
 /* ---------- Code-Sperre ---------- */
@@ -791,13 +804,13 @@ const A = {
     const d = state.sheetDay, f = el.dataset.f, v = el.dataset.v, multi = el.dataset.m === '1', e = state.db.days[d] || {};
     if (multi) { const set = new Set(e[f] || []); set.has(v) ? set.delete(v) : set.add(v); setField(d, f, [...set]); }
     else setField(d, f, e[f] === v ? null : v);
-    commit({ silent: true }); refreshSheetChips(f); render();
+    commit({ silent: true }); renderSheet(true); render();
   },
   scale(el) {
     const d = state.sheetDay, f = el.dataset.f, v = Number(el.dataset.v), e = state.db.days[d] || {};
-    setField(d, f, e[f] === v ? null : v); commit({ silent: true }); refreshSheetChips(f); render();
+    setField(d, f, e[f] === v ? null : v); commit({ silent: true }); renderSheet(true); render();
   },
-  pillDay(el) { setField(state.sheetDay, 'pill', el.checked); commit(); },
+  pillDay(el) { setField(state.sheetDay, 'pill', el.checked); commit({ silent: true }); renderSheet(true); render(); },
   clearDay() {
     const d = state.sheetDay, before = snapshot();
     delete state.db.days[d]; commit(); state.sheetDay = null; renderSheet();
@@ -975,6 +988,8 @@ function render() {
   main.innerHTML = html;
   if (same) main.querySelectorAll('.view, .ring-anim').forEach(x => { x.style.animation = 'none'; });
   main.dataset.r = location.hash;
+  const ct = document.getElementById('cap-today');
+  if (ct) ct.parentElement.scrollLeft = ct.offsetLeft - ct.parentElement.clientWidth / 2 + ct.clientWidth / 2;
   nav.querySelectorAll('button').forEach(b => { const on = b.dataset.v === r.tab; b.classList.toggle('on', on); b.setAttribute('aria-current', on ? 'page' : 'false'); });
 }
 

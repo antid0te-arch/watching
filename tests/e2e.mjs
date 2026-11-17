@@ -89,7 +89,7 @@ try {
     ok(t && t.moods.includes('Glücklich') && t.energy === 4, 'Schnell-Eintrag gespeichert');
 
     // Tages-Editor
-    await p.click(`text=Alles eintragen`);
+    await p.click('text=Symptome eintragen');
     await p.waitForSelector('.sheet');
     await p.click('.sheet [data-a=chip][data-f=symptoms][data-v="Kopfschmerzen"]');
     await p.click('.sheet [data-a=scale][data-f=stress][data-v="4"]');
@@ -132,15 +132,15 @@ try {
     // Analyse
     await p.click('#nav [data-v=stats]');
     await p.waitForTimeout(150);
-    ok(await p.isVisible('text=Zykluslängen'), 'Analyse zeigt Zykluslängen');
+    ok(await p.isVisible('text=Bisherige Zyklen'), 'Analyse zeigt Zykluslängen');
     ok(await p.locator('.ins').count() >= 2, 'Erkenntnisse vorhanden');
     ok(await p.isVisible('text=Vor der Periode'), 'PMS-Bereich vorhanden');
     const pmsTxt = await p.locator('.card:has(h2:text("Vor der Periode"))').innerText();
     ok(/Brustspannen/.test(pmsTxt), 'PMS-Muster „Brustspannen“ aus echten Daten erkannt');
     await p.click('.chart .hit >> nth=0');
-    ok(!/Tippe auf einen Balken/.test(await p.locator('#tip-cyc').innerText()), 'Diagramm-Tooltip reagiert');
+    ok(/Tage/.test(await p.locator('#tip-cyc').innerText()), 'Diagramm-Tooltip reagiert');
     await p.click('[data-a=metric][data-v=sleep]');
-    ok(await p.locator('svg.chart').count() >= 2, 'Verlaufskurve (Schlaf) gezeichnet');
+    ok(await p.locator('#tip-phc').count() === 1 && await p.locator('#tip-curve').count() === 1, 'Schlaf nach Phase und nach Zyklustag gezeichnet');
     await shot(p, '05-analyse');
     await p.click('[data-a=range][data-v="3"]');
     ok(p.errors.length === 0, 'Zeitraumwechsel ohne Fehler');

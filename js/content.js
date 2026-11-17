@@ -173,3 +173,27 @@ export const ARTICLES = [
     sources: ['nhsPeriods', 'nhsIrregular', 'fin'],
   },
 ];
+
+// Emojis für Chips (rein dekorativ; Speicherwerte bleiben die Texte)
+export const EMOJI = {
+  'Glücklich': '😊', 'Ruhig': '😌', 'Energiegeladen': '⚡', 'Verliebt': '🥰', 'Selbstbewusst': '😎', 'Gereizt': '😤', 'Traurig': '😢',
+  'Ängstlich': '😰', 'Gestresst': '😫', 'Stimmungsschwankungen': '🎭', 'Sensibel': '🥺', 'Antriebslos': '😶', 'Wütend': '😠',
+  'Krämpfe': '😣', 'Unterleibsschmerzen': '🤕', 'Kopfschmerzen': '🤯', 'Migräne': '🤕', 'Rückenschmerzen': '🧍‍♀️', 'Brustspannen': '💗', 'Gelenkschmerzen': '🦵',
+  'Müdigkeit': '🥱', 'Schwindel': '💫', 'Hitzewallungen': '🔥', 'Frösteln': '🥶', 'Wassereinlagerungen': '💧',
+  'Blähungen': '🎈', 'Übelkeit': '🤢', 'Durchfall': '🚽', 'Verstopfung': '🪨', 'Heißhunger': '🍫',
+  'Akne': '🔴', 'Fettige Haut': '🫧', 'Trockene Haut': '🏜️', 'Fettige Haare': '💇‍♀️', 'Schlafprobleme': '🌙',
+  'Süßes': '🍬', 'Salziges': '🥨', 'Schokolade': '🍫', 'Kohlenhydrate': '🍝',
+  'Wenig': '🥄', 'Normal': '🍽️', 'Viel': '🍱',
+  'Spaziergang': '🚶‍♀️', 'Yoga': '🧘‍♀️', 'Laufen': '🏃‍♀️', 'Krafttraining': '🏋️‍♀️', 'Radfahren': '🚴‍♀️', 'Schwimmen': '🏊‍♀️', 'Tanzen': '💃', 'Teamsport': '⚽', 'Ruhetag': '🛋️',
+  'Kein Sex': '🚫', 'Geschützt': '🛡️', 'Ungeschützt': '❤️', 'Wenig Lust': '🧊', 'Viel Lust': '🔥',
+  spotting: '🔸', light: '💧', medium: '🩸', heavy: '🌊', none: '✅',
+};
+export const SECTION_EMOJI = { flow: '🩸', pain: '🤕', mood: '😊', energy: '⚡', stress: '😮‍💨', body: '🫶', sleep: '🌙', digestion: '🍽️', skin: '✨', custom: '📝', activity: '🏃‍♀️', mucus: '💧', sex: '❤️', meds: '💊', meas: '🌡️', notes: '🗒️' };
+
+// Allgemeine Alltagstipps je Phase (kein medizinischer Rat)
+export const RECS = {
+  mens: { food: 'Eisenreiche Lebensmittel wie Linsen, Haferflocken oder Spinat – und genug trinken.', move: 'Sanftes Yoga, Dehnen oder ein ruhiger Spaziergang.' },
+  foll: { food: 'Frisches Gemüse, Eiweiß und Vollkorn für aktive Tage.', move: 'Gute Zeit für Cardio, Tanzen oder etwas Neues.' },
+  fert: { food: 'Leichte, ausgewogene Mahlzeiten und viel Wasser.', move: 'Viele fühlen sich jetzt stark – z. B. Krafttraining oder Laufen.' },
+  lut: { food: 'Regelmäßige Mahlzeiten mit Vollkorn und Nüssen sättigen lange – praktisch bei Heißhunger.', move: 'Moderat bleiben: Pilates, Schwimmen oder Spazierengehen.' },
+};

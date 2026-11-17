@@ -161,3 +161,87 @@ export function confBars(level) {
 }
 export const CONF_LABEL = { high: 'Hohe Sicherheit', medium: 'Mittlere Sicherheit', low: 'Geringe Sicherheit' };
 export const TYPE_LABEL = { personal: 'Aus deinen Daten', estimate: 'Schätzung', education: 'Wissen', notice: 'Hinweis' };
+
+/* ---------- Halbrunder Phasenbogen (Startseite) ---------- */
+export function gauge(m) {
+  const W = 300, H = 170, cx = 150, cy = 150, R = 124, SW = 20, A0 = -104, A1 = 104;
+  const pt = a => { const r = a * Math.PI / 180; return [cx + R * Math.sin(r), cy - R * Math.cos(r)]; };
+  const arc = (a, b, col, extra = '') => {
+    const [x0, y0] = pt(a), [x1, y1] = pt(b);
+    return `<path d="M${x0.toFixed(1)} ${y0.toFixed(1)} A${R} ${R} 0 ${b - a > 180 ? 1 : 0} 1 ${x1.toFixed(1)} ${y1.toFixed(1)}" stroke="${col}" stroke-width="${SW}" stroke-linecap="round" fill="none" ${extra}/>`;
+  };
+  let s = `<defs><filter id="gsh" x="-50%" y="-50%" width="200%" height="200%"><feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#5a3a5e" flood-opacity=".28"/></filter></defs>`;
+  if (!m.cur) return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Noch keine Zyklusdaten">${s}${arc(A0, A1, 'var(--surface-2)')}</svg>`;
+  const N = Math.max(m.avgCycle, m.cycleDay);
+  const P = Math.min(N, diff(m.cur.start, m.cur.end) + 1);
+  const ov = diff(m.cur.start, m.cur.ov) + 1;
+  const ang = d => A0 + (A1 - A0) * (d - 1) / Math.max(1, N - 1);
+  const parts = [[1, P, 'var(--mens)'], [P + 1, ov - 6, 'var(--foll)'], [Math.max(P + 1, ov - 5), ov + 1, 'var(--fert)'], [ov + 2, m.avgCycle, 'var(--lut)']];
+  if (N > m.avgCycle) parts.push([m.avgCycle + 1, N, 'color-mix(in srgb, var(--mens) 35%, var(--surface-2))']);
+  s += arc(A0, A1, 'var(--surface-2)');
+  const gap = 3.2;
+  for (const [a, b, col] of parts) {
+    if (b < a) continue;
+    const s0 = ang(a) + (a > 1 ? gap / 2 : 0), s1 = ang(b) - (b < N ? gap / 2 : 0);
+    s += arc(Math.min(s0, s1 - .01), Math.max(s1, s0 + .01), col, 'class="ring-seg"');
+  }
+  const [mx, my] = pt(ang(Math.min(m.cycleDay, N)));
+  s += `<circle cx="${mx.toFixed(1)}" cy="${my.toFixed(1)}" r="16" fill="var(--plum)" filter="url(#gsh)"/><circle cx="${mx.toFixed(1)}" cy="${my.toFixed(1)}" r="5.5" fill="var(--on-plum)"/>`;
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Zyklustag ${m.cycleDay} von etwa ${m.avgCycle}"><g class="ring-anim" style="transform-origin:150px 150px">${s}</g></svg>`;
+}
+
+/* ---------- Weiche Linie (Catmull-Rom) ---------- */
+function smoothPath(pts) {
+  if (pts.length < 2) return '';
+  let d = `M${pts[0][0].toFixed(1)} ${pts[0][1].toFixed(1)}`;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[i - 1] || pts[i], p1 = pts[i], p2 = pts[i + 1], p3 = pts[i + 2] || p2;
+    const c1 = [p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6], c2 = [p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6];
+    d += ` C${c1[0].toFixed(1)} ${c1[1].toFixed(1)} ${c2[0].toFixed(1)} ${c2[1].toFixed(1)} ${p2[0].toFixed(1)} ${p2[1].toFixed(1)}`;
+  }
+  return d;
+}
+
+/** Werte je Phase als weiche Kurve mit farbigen Punkten (null = keine Daten). */
+export function phaseCurve(vals, { yMin, yMax, id = 'pc', fmtY = v => dec(v), label = '' }) {
+  const ph = [['mens', 'Periode', 'var(--mens)'], ['foll', 'Follikel', 'var(--foll)'], ['fert', 'Fruchtbar', 'var(--fert)'], ['lut', 'Luteal', 'var(--lut)']];
+  const W = 330, H = 170, L = 30, Rr = 14, T = 12, B = 30;
+  const x = i => L + 14 + (W - L - Rr - 28) * i / 3, y = v => T + (H - T - B) * (1 - (v - yMin) / (yMax - yMin || 1));
+  let s = `<defs><linearGradient id="g-${id}" x1="0" x2="1"><stop offset="0" stop-color="var(--mens)"/><stop offset=".35" stop-color="var(--foll)"/><stop offset=".7" stop-color="var(--fert)"/><stop offset="1" stop-color="var(--lut)"/></linearGradient></defs>`;
+  for (let k = 0; k <= 4; k++) { const v = yMin + (yMax - yMin) * k / 4; s += `<line x1="${L}" x2="${W - 4}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)" stroke-dasharray="3 5"/><text x="${L - 8}" y="${y(v) + 4}" text-anchor="end" font-size="10" fill="var(--muted)">${fmtY(v)}</text>`; }
+  const pts = ph.map((p, i) => vals[p[0]] == null ? null : [x(i), y(vals[p[0]]), p, vals[p[0]]]).filter(Boolean);
+  s += `<path d="${smoothPath(pts)}" fill="none" stroke="url(#g-${id})" stroke-width="3" stroke-linecap="round"/>`;
+  for (const [px, py, p, v] of pts) s += `<circle cx="${px}" cy="${py}" r="6" fill="var(--surface)" stroke="${p[2]}" stroke-width="3"/><circle class="hit" cx="${px}" cy="${py}" r="18" fill="transparent" data-a="tip" data-t="${id}" data-tip="${p[1]}: Ø ${fmtY(v)}"/>`;
+  ph.forEach((p, i) => { s += `<text x="${x(i)}" y="${H - 12}" text-anchor="middle" font-size="11" fill="var(--text)">${p[1]}</text><circle cx="${x(i)}" cy="${H - 2}" r="3" fill="${p[2]}"/>`; });
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(label)}">${s}</svg><div class="tip" id="tip-${id}" aria-live="polite">Tippe auf einen Punkt für Details.</div>`;
+}
+
+/** Verlauf als Linie mit Fläche (z. B. Zykluslängen). */
+export function areaLine(items, { band = null, avg = null, id = 'al', unit = '', height = 170 } = {}) {
+  if (!items.length) return '';
+  const W = 330, H = height, L = 28, Rr = 10, T = 14, B = 26;
+  const vals = items.map(d => d.value);
+  let lo = Math.min(...vals, band ? band[0] : Infinity, avg ?? Infinity), hi = Math.max(...vals, band ? band[1] : -Infinity, avg ?? -Infinity);
+  lo = Math.max(0, Math.floor(lo - 2)); hi = Math.ceil(hi + 2);
+  const n = items.length;
+  const x = i => n === 1 ? (L + W - Rr) / 2 : L + 8 + (W - L - Rr - 16) * i / (n - 1), y = v => T + (H - T - B) * (1 - (v - lo) / (hi - lo || 1));
+  let s = `<defs><linearGradient id="a-${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--accent-hi)" stop-opacity=".45"/><stop offset="1" stop-color="var(--lut)" stop-opacity=".04"/></linearGradient></defs>`;
+  if (band) s += `<rect x="${L}" y="${y(band[1])}" width="${W - L - 4}" height="${y(band[0]) - y(band[1])}" fill="var(--accent-soft)" opacity=".6" rx="8"/>`;
+  for (const v of [lo, Math.round((lo + hi) / 2), hi]) s += `<text x="${L - 7}" y="${y(v) + 4}" text-anchor="end" font-size="10" fill="var(--muted)">${v}</text>`;
+  const pts = items.map((d, i) => [x(i), y(d.value)]);
+  if (n > 1) s += `<path d="${smoothPath(pts)} L${pts[n - 1][0]} ${H - B} L${pts[0][0]} ${H - B} Z" fill="url(#a-${id})"/><path d="${smoothPath(pts)}" fill="none" stroke="var(--sel)" stroke-width="2.8" stroke-linecap="round"/>`;
+  if (avg != null) s += `<line x1="${L}" x2="${W - 4}" y1="${y(avg)}" y2="${y(avg)}" stroke="var(--plum)" stroke-opacity=".45" stroke-dasharray="4 4"/>`;
+  const every = Math.ceil(n / 7);
+  items.forEach((d, i) => {
+    const [px, py] = pts[i];
+    s += `<circle cx="${px}" cy="${py}" r="${n > 14 ? 3.5 : 5}" fill="${d.color || 'var(--sel)'}" stroke="var(--surface)" stroke-width="2"/>`;
+    if (i % every === 0 || i === n - 1) s += `<text x="${px}" y="${H - 8}" text-anchor="middle" font-size="10" fill="var(--muted)">${esc(d.label)}</text>`;
+    s += `<rect class="hit" x="${px - (W / n) / 2}" y="0" width="${W / n}" height="${H}" fill="transparent" data-a="tip" data-t="${id}" data-tip="${esc(d.tip || d.value + unit)}"/>`;
+  });
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Verlauf">${s}</svg><div class="tip" id="tip-${id}" aria-live="polite">Tippe auf einen Punkt für Details.</div>`;
+}
+
+export function donut(frac, col = 'var(--sel)') {
+  const r = 34, c = 2 * Math.PI * r, f = Math.max(0, Math.min(1, frac));
+  return `<svg viewBox="0 0 84 84" aria-hidden="true"><circle cx="42" cy="42" r="${r}" stroke="var(--surface-2)" stroke-width="12" fill="none"/><circle cx="42" cy="42" r="${r}" stroke="${col}" stroke-width="12" fill="none" stroke-linecap="round" stroke-dasharray="${(c * f).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 42 42)"/></svg>`;
+}
